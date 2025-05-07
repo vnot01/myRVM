@@ -13,11 +13,19 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Panggil seeder dalam urutan yang benar (User dan RVM dulu, baru Deposit)
+        $this->call([
+            UserSeeder::class,
+            ReverseVendingMachineSeeder::class,
+            DepositSeeder::class,
+            // Tambahkan seeder lain di sini jika ada
+        ]);
+
         // User::factory(10)->create();
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // User::factory()->create([
+        //     'name' => 'Test User',
+        //     'email' => 'test@example.com',
+        // ]);
     }
 }
