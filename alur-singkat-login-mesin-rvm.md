@@ -66,20 +66,31 @@ Dokumen ini menjelaskan alur bagaimana seorang pengguna yang terdaftar dapat mem
 
 **Diagram Alur Sederhana (Squence):**
 
-::: mermaid
+```mermaid
 sequenceDiagram
+loop 1. Login
+    Aplikasi User->>Aplikasi User: (bearer_token)
+end
 Aplikasi User->>Aplikasi User: (1. Login, dapat bearer_token)
 Aplikasi User->>Aplikasi RVM: (2. Minta qr_token)
 Aplikasi User-->>Aplikasi RVM: (bearer_token)
 Aplikasi RVM-->>Backend API: (bearer_token)
 Backend API-->>Aplikasi RVM: (qr_token)
 Aplikasi RVM-->>Aplikasi User: (3. Dapat qr_token)
-Aplikasi User->>Aplikasi User: (4. Tampilkan QR Code)
+loop 4. QR Code
+    Aplikasi User->>Aplikasi User: (qr_token)
+end
 Aplikasi User->>Aplikasi RVM: (5. User scan QR di RVM)
-Aplikasi RVM->>Aplikasi RVM: (6. Membaca QR dari User)
+loop 6. Membaca QR dari User
+    Aplikasi RVM->>Aplikasi RVM: (qr_token)
+end
 Aplikasi RVM-->>Backend API: (qr_token)
 Aplikasi RVM-->>Backend API: (rvm_api_key)
-Backend API-->>Backend API: (Validasi)
+loop Proses Validasi
+    Backend API-->>Backend API: (Validasi)
+end
 Backend API-->>Aplikasi RVM: (7. Respons Validasi)
-Aplikasi RVM-->>Aplikasi RVM: (Mulai Sesi Deposit)
-:::
+loop Mulai Sesi Deposit
+    Aplikasi RVM-->>Aplikasi RVM: (Detect)
+end
+```
