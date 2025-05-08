@@ -2,39 +2,53 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AuthController; // Asumsi Anda punya controller ini
 use App\Http\Controllers\Api\RvmController;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register API routes for your application. These
+| routes are loaded by the RouteServiceProvider and all of them will
+| be assigned to the "api" middleware group. Make something great!
+|
+*/
 
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+// Rute Autentikasi User (Contoh)
+Route::post('/auth/register', [AuthController::class, 'register'])->name('api.auth.register');
+Route::post('/auth/login', [AuthController::class, 'login'])->name('api.auth.login');
+Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogle'])->name('api.auth.google.redirect');
+Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('api.auth.google.callback');
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/user', [AuthController::class, 'userProfile']); // Endpoint untuk mengambil info user yang sedang login
-    // Rute lain yang memerlukan otentikasi akan ada di sini
+    Route::get('/user', [AuthController::class, 'userProfile'])->name('api.user.profile');
+    Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
+    // Rute lain yang memerlukan otentikasi user (Sanctum)
 });
 
-// Rute untuk Google OAuth
-Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogle'])->name('google.redirect'); // Beri nama rute jika perlu
-Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('google.callback');
-Route::post('/deposit', [RvmController::class, 'deposit'])
-    ->name('deposit')
-    ->middleware('auth.rvm');
-
-Route::prefix('rvm')->name('rvm.')->group(function () {
-    // Endpoint ini mungkin tidak memerlukan middleware auth.rvm jika api_key dikirim di body
-    // dan divalidasi di dalam controller seperti contoh di atas.
-    // Jika api_key dikirim di header dan divalidasi middleware, maka hapus validasi api_key di controller.
+// Rute untuk RVM
+Route::prefix('rvm')->name('api.rvm.')->group(function () {
+    // Endpoint ini untuk RVM melakukan "login" awal atau cek status jika diperlukan.
+    // Tidak menggunakan middleware auth.rvm karena di sinilah RVM akan mengirim API key-nya
+    // untuk pertama kali atau untuk validasi sederhana.
     Route::post('/authenticate', [RvmController::class, 'authenticateRvm'])->name('authenticate');
+
+    // Endpoint ini mungkin memerlukan otentikasi user (Sanctum) jika token dikirim
+    // atau bisa juga terbuka jika tokennya adalah jenis public short-lived token.
+    // Untuk saat ini, biarkan terbuka atau tambahkan middleware yang sesuai nanti.
     Route::post('/validate-user-token', [RvmController::class, 'validateUserToken'])->name('validate_user_token');
 
-    // Endpoint deposit:
-    // Jika menggunakan middleware 'auth.rvm' dan API key di header:
-    // Route::post('/deposit', [RvmController::class, 'deposit'])->name('deposit')->middleware('auth.rvm');
-    // Jika API key dikirim di body dan divalidasi di controller (seperti contoh controller saat ini):
-    Route::post('/deposit', [RvmController::class, 'deposit'])->name('deposit');
+    // Endpoint deposit, INI YANG PENTING
+    // Akan menggunakan URL: /api/rvm/deposit
+    // dan memerlukan otentikasi RVM via middleware auth.rvm
+    Route::post('/deposit', [RvmController::class, 'deposit'])
+        ->name('deposit') // Nama rute menjadi api.rvm.deposit
+        ->middleware('auth.rvm');
 });
+
+// HAPUS DEFINISI /deposit YANG ADA DI LUAR GRUP 'rvm'
+// Route::post('/deposit', [RvmController::class, 'deposit'])
+//     ->name('deposit')
+//     ->middleware('auth.rvm');
