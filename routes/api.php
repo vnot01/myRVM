@@ -2,8 +2,9 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AuthController; // Asumsi Anda punya controller ini
+use App\Http\Controllers\Api\AuthController as ApiAuthController;
 use App\Http\Controllers\Api\RvmController;
+use App\Http\Controllers\Api\UserController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,39 +17,45 @@ use App\Http\Controllers\Api\RvmController;
 |
 */
 
-// Rute Autentikasi User (Contoh)
-Route::post('/auth/register', [AuthController::class, 'register'])->name('api.auth.register');
-Route::post('/auth/login', [AuthController::class, 'login'])->name('api.auth.login');
-Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogle'])->name('api.auth.google.redirect');
-Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('api.auth.google.callback');
+// --- Grup Rute Autentikasi API ---
+Route::prefix('auth')->name('api.auth.')->group(function () {
+    Route::post('/register', [ApiAuthController::class, 'register'])->name('register');
+    Route::post('/login', [ApiAuthController::class, 'login'])->name('login');
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/user', [AuthController::class, 'userProfile'])->name('api.user.profile');
-    Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
-    // Rute lain yang memerlukan otentikasi user (Sanctum)
+    // Endpoint untuk frontend Mobile/SPA mengirim ID Token Google
+    // Frontend mendapatkan ID Token dari Google SDK, lalu mengirimkannya ke endpoint ini.
+    Route::post('/google/token-signin', [ApiAuthController::class, 'signInWithGoogleIdToken'])->name('google.token_signin');
+
+    // Rute yang memerlukan user terotentikasi via Sanctum token
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/logout', [ApiAuthController::class, 'logout'])->name('logout');
+        Route::get('/user', [ApiAuthController::class, 'userProfile'])->name('user.profile');
+    });
 });
 
-// Rute untuk RVM
+// --- Grup Rute untuk Fitur User yang Sudah Terotentikasi API ---
+Route::middleware('auth:sanctum')->prefix('user')->name('api.user.')->group(function () {
+    Route::get('/deposit-history', [UserController::class, 'depositHistory'])->name('deposit_history');
+    Route::post('/generate-rvm-token', [UserController::class, 'generateRvmLoginToken'])->name('generate_rvm_token');
+    // Tambahkan rute lain terkait user di sini jika ada, misalnya update profil, dll.
+});
+// --- Grup Rute untuk Fitur RVM yang Sudah Terotentikasi API ---
+
+// --- Grup Rute untuk Interaksi dengan RVM ---
 Route::prefix('rvm')->name('api.rvm.')->group(function () {
-    // Endpoint ini untuk RVM melakukan "login" awal atau cek status jika diperlukan.
-    // Tidak menggunakan middleware auth.rvm karena di sinilah RVM akan mengirim API key-nya
-    // untuk pertama kali atau untuk validasi sederhana.
+    // Endpoint ini untuk RVM melakukan "login" awal atau cek status.
+    // Tidak menggunakan middleware auth.rvm karena di sinilah RVM akan mengirim API key-nya.
     Route::post('/authenticate', [RvmController::class, 'authenticateRvm'])->name('authenticate');
 
-    // Endpoint ini mungkin memerlukan otentikasi user (Sanctum) jika token dikirim
-    // atau bisa juga terbuka jika tokennya adalah jenis public short-lived token.
-    // Untuk saat ini, biarkan terbuka atau tambahkan middleware yang sesuai nanti.
+    // Endpoint ini dipanggil oleh RVM setelah men-scan QR code dari Aplikasi User.
+    // Tidak memerlukan middleware auth.rvm karena tokennya dari user, bukan API key RVM.
+    // Namun, endpoint ini sendiri tidak memerlukan 'auth:sanctum' karena dipanggil oleh RVM.
     Route::post('/validate-user-token', [RvmController::class, 'validateUserToken'])->name('validate_user_token');
 
-    // Endpoint deposit, INI YANG PENTING
-    // Akan menggunakan URL: /api/rvm/deposit
-    // dan memerlukan otentikasi RVM via middleware auth.rvm
+    // Endpoint utama untuk RVM mengirim data deposit.
+    // Dilindungi oleh middleware 'auth.rvm' yang memvalidasi X-RVM-ApiKey dari header.
     Route::post('/deposit', [RvmController::class, 'deposit'])
-        ->name('deposit') // Nama rute menjadi api.rvm.deposit
-        ->middleware('auth.rvm');
+        ->name('deposit')
+        ->middleware('auth.rvm'); // Pastikan alias 'auth.rvm' terdaftar
 });
-
-// HAPUS DEFINISI /deposit YANG ADA DI LUAR GRUP 'rvm'
-// Route::post('/deposit', [RvmController::class, 'deposit'])
-//     ->name('deposit')
-//     ->middleware('auth.rvm');
+// --- Akhir Grup Rute untuk Interaksi dengan RVM ---

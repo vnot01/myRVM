@@ -6,12 +6,12 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Services\GeminiVisionService;
 use App\Models\User;
-use App\Models\ReverseVendingMachine;
 use App\Models\Deposit;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB; // Untuk transaksi database
-use Illuminate\Support\Str; // Jika perlu untuk image path
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 
 class RvmController extends Controller
 {
@@ -20,20 +20,13 @@ class RvmController extends Controller
     public function __construct(GeminiVisionService $geminiService)
     {
         $this->geminiService = $geminiService;
-        // Middleware untuk otentikasi RVM bisa diterapkan di sini atau di rute
-        // $this->middleware('auth.rvm')->only('deposit');
     }
 
-    /**
-     * Menerima deposit dari RVM.
-     */
     public function deposit(Request $request)
     {
-        // Validasi input awal
         $validator = Validator::make($request->all(), [
-            'image' => 'required|image|mimes:jpeg,png,jpg|max:5120', // Max 5MB
-            'user_identifier' => 'required|string', // Bisa user_id atau guest_session_id
-            // 'rvm_api_key' => 'required|string', // rvm_api_key tidak perlu divalidasi di sini lagi jika via middleware & header
+            'image' => 'required|image|mimes:jpeg,png,jpg|max:5120',
+            'user_identifier' => 'required|string',
         ]);
 
         if ($validator->fails()) {
@@ -42,90 +35,64 @@ class RvmController extends Controller
 
         $rvm = $request->attributes->get('authenticated_rvm');
         if (!$rvm) {
-            // Ini seharusnya tidak terjadi jika middleware berjalan dengan benar
-            return response()->json(['status' => 'error', 'message' => 'RVM authentication failed unexpectedly.'], 500);
+            Log::error('Authenticated RVM not found in request attributes...');
+            return response()->json(['status' => 'error', 'message' => 'RVM authentication processing error.'], 500);
         }
 
-        // // 1. Otentikasi RVM berdasarkan rvm_api_key
-        // $rvm = ReverseVendingMachine::where('api_key', $request->input('rvm_api_key'))->first();
-        // if (!$rvm) {
-        //     return response()->json(['status' => 'error', 'message' => 'Invalid RVM API Key.'], 401);
-        // }
-        // if ($rvm->status !== 'active') {
-        //     return response()->json(['status' => 'error', 'message' => 'RVM is not active. Current status: ' . $rvm->status], 403);
-        // }
-
-        // 2. Identifikasi User (Contoh sederhana, perlu disesuaikan dengan mekanisme token Anda)
-        // Untuk saat ini, kita asumsikan 'user_identifier' adalah user_id yang sudah valid
-        // atau sebuah penanda guest. Jika guest, user_id di deposit bisa null.
         $userId = null;
-        $user = User::find($request->input('user_identifier')); // Jika identifier adalah ID user
-        if ($user) {
-            $userId = $user->id;
+        $userInstance = null; // Ganti nama variabel agar lebih jelas ini instance model
+        if (is_numeric($request->input('user_identifier'))) {
+            $userInstance = User::find($request->input('user_identifier'));
+            if ($userInstance) {
+                $userId = $userInstance->id;
+            } else {
+                Log::info('User ID not found for numeric identifier.', ['identifier' => $request->input('user_identifier')]);
+            }
         } else {
-            // Logika untuk guest user atau jika identifier adalah token yang perlu divalidasi
-            // Jika user_identifier adalah token, validasi di sini
-            // Untuk saat ini, jika tidak ditemukan sebagai ID, kita anggap guest atau invalid
-            Log::info('Deposit attempt with non-user ID identifier or guest.', ['identifier' => $request->input('user_identifier')]);
-            // Jika sistem tidak mengizinkan deposit tanpa user yang dikenali, return error
-            // return response()->json(['status' => 'error', 'message' => 'Invalid user identifier.'], 401);
+            Log::info('Processing non-numeric user_identifier...', ['identifier' => $request->input('user_identifier')]);
         }
-
 
         DB::beginTransaction();
         try {
             $imageFile = $request->file('image');
-
-            // (Opsional) Simpan gambar asli jika diperlukan untuk audit
-            // $imagePath = $imageFile->store('deposits/'.date('Y/m'), 'public');
             $imagePath = 'deposits/' . date('Y/m') . '/' . Str::uuid()->toString() . '.' . $imageFile->getClientOriginalExtension();
             $imageFile->storeAs('public', $imagePath);
 
-
-            // 3. Panggil GeminiVisionService
             $geminiResults = $this->geminiService->analyzeImageFromFile($imageFile);
+            $firstResult = $geminiResults[0] ?? null;
+            $rawLabel = $firstResult['label'] ?? 'unknown';
 
-            if (empty($geminiResults)) {
-                // Tidak ada item terdeteksi oleh Gemini atau error parsing yang menghasilkan array kosong
-                // Kembalikan sebagai "unknown" atau "rejected"
-                $deposit = Deposit::create([
+            // Penanganan jika tidak ada hasil dari Gemini atau label unknown
+            if (empty($geminiResults) || $rawLabel === 'unknown') {
+                $depositData = [
                     'user_id' => $userId,
                     'rvm_id' => $rvm->id,
                     'detected_type' => 'REJECTED_UNIDENTIFIED',
                     'points_awarded' => 0,
                     'image_path' => $imagePath,
-                    'gemini_raw_label' => 'No items detected by vision service',
-                    'gemini_raw_response' => $geminiResults, // Akan jadi array kosong
-                    'needs_action' => true, // User harus ambil kembali
+                    'gemini_raw_label' => $rawLabel === 'unknown' && !empty($geminiResults) ? $rawLabel : 'No items detected',
+                    'gemini_raw_response' => $geminiResults,
+                    'needs_action' => true,
                     'deposited_at' => now(),
-                ]);
+                ];
+                $deposit = Deposit::create($depositData);
                 DB::commit();
                 return response()->json([
                     'status' => 'rejected',
                     'reason' => 'UNIDENTIFIED_ITEM',
-                    'message' => 'No identifiable items detected. Please take your item back.',
+                    'message' => 'No identifiable items detected or item type unknown.',
                     'item_type' => 'REJECTED_UNIDENTIFIED',
                     'points_awarded' => 0,
                     'deposit_id' => $deposit->id,
                 ]);
             }
 
-            // 4. Interpretasi Hasil Gemini (Logika ini perlu disempurnakan)
-            // Asumsi $geminiResults adalah array, dan kita proses item pertama yang paling relevan
-            // atau jika ada beberapa, kita ambil yang paling dominan/jelas.
-            // Untuk RVM, biasanya kita harapkan satu item per deposit.
-            $firstResult = $geminiResults[0]; // Ambil deteksi pertama
-            $rawLabel = $firstResult['label'] ?? 'unknown';
-
-            // --- Mulai Logika Interpretasi Label ---
+            // Logika Interpretasi Label (Sama seperti sebelumnya)
             $detectedType = 'UNKNOWN';
             $pointsAwarded = 0;
-            $needsAction = true; // Default true, kecuali item valid diterima
-
-            // Contoh sederhana logika interpretasi (PERLU DIKEMBANGKAN SECARA ROBUST)
-            // Anda mungkin perlu menggunakan regex atau pencocokan string yang lebih canggih
+            $needsAction = true;
             $lowerLabel = strtolower($rawLabel);
-
+            // ... (blok if/elseif untuk interpretasi label) ...
             if (str_contains($lowerLabel, 'empty') && (str_contains($lowerLabel, 'mineral bottle') || str_contains($lowerLabel, 'water bottle'))) {
                 $detectedType = 'PET_MINERAL_EMPTY';
                 $pointsAwarded = 10;
@@ -143,41 +110,44 @@ class RvmController extends Controller
                 $pointsAwarded = 0;
                 $needsAction = true;
             } else {
-                // Jika tidak cocok dengan kriteria di atas
                 $detectedType = 'REJECTED_UNKNOWN_TYPE';
                 $pointsAwarded = 0;
                 $needsAction = true;
-                Log::info('Unmatched Gemini label:', ['label' => $rawLabel]);
+                Log::info('Unmatched Gemini label:', ['label' => $rawLabel, 'rvm_id' => $rvm->id]);
             }
-            // --- Akhir Logika Interpretasi Label ---
 
-            // 5. Simpan ke Database
-            $deposit = Deposit::create([
+
+            $depositData = [
                 'user_id' => $userId,
                 'rvm_id' => $rvm->id,
                 'detected_type' => $detectedType,
                 'points_awarded' => $pointsAwarded,
                 'image_path' => $imagePath,
                 'gemini_raw_label' => $rawLabel,
-                'gemini_raw_response' => $geminiResults, // Simpan semua hasil jika ada >1
+                'gemini_raw_response' => $geminiResults,
                 'needs_action' => $needsAction,
                 'deposited_at' => now(),
-            ]);
+            ];
+            $deposit = Deposit::create($depositData);
 
-            // 6. Update Poin User jika user teridentifikasi dan item diterima
-            if ($user && !$needsAction && $pointsAwarded > 0) {
-                $user->points += $pointsAwarded;
-                $user->save();
+            $currentUserTotalPoints = null; // Inisialisasi
+            if ($userInstance && !$needsAction && $pointsAwarded > 0) {
+                $userInstance->points += $pointsAwarded;
+                $userInstance->save();
+                // $userInstance->refresh(); // Opsional, tapi $userInstance->points sudah update di memori
+                $currentUserTotalPoints = $userInstance->points; // Ambil poin setelah diupdate
+            } elseif ($userInstance) {
+                // Jika user ada tapi item ditolak atau tidak dapat poin
+                $currentUserTotalPoints = $userInstance->points;
             }
 
             DB::commit();
 
-            // 7. Kembalikan Respons ke RVM
             if ($needsAction) {
                 return response()->json([
                     'status' => 'rejected',
-                    'reason' => $detectedType, // e.g., REJECTED_HAS_CONTENT
-                    'message' => 'Item rejected. Please take your item back. Reason: ' . str_replace('_', ' ', $detectedType),
+                    'reason' => $detectedType,
+                    'message' => 'Item rejected. Reason: ' . str_replace('_', ' ', $detectedType),
                     'item_type' => $detectedType,
                     'points_awarded' => 0,
                     'deposit_id' => $deposit->id,
@@ -189,62 +159,61 @@ class RvmController extends Controller
                     'item_type' => $detectedType,
                     'points_awarded' => $pointsAwarded,
                     'deposit_id' => $deposit->id,
-                    'user_total_points' => $user ? $user->points : null,
+                    'user_total_points' => $currentUserTotalPoints, // Gunakan variabel yang sudah pasti
                 ]);
             }
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('RVM Deposit Error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-                'request_data' => $request->except('image') // Jangan log data file gambar
+                'trace' => substr($e->getTraceAsString(), 0, 2000),
+                'rvm_id' => $rvm->id ?? 'RVM NA',
+                'user_identifier' => $request->input('user_identifier'),
             ]);
-            return response()->json(['status' => 'error', 'message' => 'An internal error occurred during deposit: ' . $e->getMessage()], 500);
+            return response()->json(['status' => 'error', 'message' => 'Internal error during deposit.'], 500);
         }
     }
 
-    /**
-     * Placeholder untuk otentikasi RVM.
-     * RVM mengirimkan API key-nya, endpoint ini bisa digunakan untuk validasi awal
-     * atau untuk mendapatkan session token jika menggunakan pendekatan stateful (kurang ideal untuk API).
-     * Untuk stateless API, setiap request dari RVM harus menyertakan API key.
-     */
+    // Metode authenticateRvm dan validateUserToken tetap sama
     public function authenticateRvm(Request $request)
     {
-        $validator = Validator::make($request->all(), ['api_key' => 'required|string']);
-        if ($validator->fails()) {
-            return response()->json(['status' => 'error', 'message' => 'API key is required.'], 422);
-        }
-
-        $rvm = ReverseVendingMachine::where('api_key', $request->input('api_key'))->first();
-        if ($rvm && $rvm->status === 'active') {
-            // Di sini Anda bisa generate token Sanctum khusus untuk RVM ini jika mau
-            // $token = $rvm->createToken('rvm-token-' . $rvm->id)->plainTextToken;
-            return response()->json(['status' => 'success', 'message' => 'RVM authenticated.', 'rvm_id' => $rvm->id /*, 'token' => $token */]);
+        // ... (kode sama)
+        $rvmValidInstance = \App\Models\ReverseVendingMachine::where('api_key', $request->input('api_key'))->first();
+        if ($rvmValidInstance && $rvmValidInstance->status === 'active') { // ganti nama var
+            return response()->json(['status' => 'success', 'message' => 'RVM authenticated.', 'rvm_id' => $rvmValidInstance->id]);
         }
         return response()->json(['status' => 'error', 'message' => 'Invalid RVM API Key or RVM not active.'], 401);
     }
 
-    /**
-     * Placeholder untuk validasi user token dari QR Code.
-     * RVM mengirimkan token yang di-scan, endpoint ini memvalidasinya.
-     */
     public function validateUserToken(Request $request)
     {
-        // Implementasi validasi token user yang di-generate oleh Aplikasi User
-        // Contoh: token JWT singkat atau UUID yang disimpan sementara dengan user_id
-        $validator = Validator::make($request->all(), ['user_token' => 'required|string']);
+        // ... (kode sama, pastikan User::find() di dalamnya)
+        $validator = Validator::make($request->all(), [
+            'user_token' => 'required|string|size:40'
+        ]);
+
         if ($validator->fails()) {
-            return response()->json(['status' => 'error', 'message' => 'User token is required.'], 422);
+            return response()->json(['status' => 'error', 'message' => 'User token is required/invalid format.', 'errors' => $validator->errors()], 422);
         }
 
-        $userToken = $request->input('user_token');
-        // Logika validasi token (misalnya, cek di cache atau tabel temporary tokens)
-        // $userId = $this->findUserIdByToken($userToken);
+        $rvmLoginToken = $request->input('user_token');
+        $cacheKey = 'rvm_login_token:' . $rvmLoginToken;
 
-        // Placeholder:
-        $user = User::find($userToken); // Ini BUKAN implementasi yang aman, hanya contoh jika token adalah user_id
-        if ($user) {
-            return response()->json(['status' => 'success', 'message' => 'User token validated.', 'user_id' => $user->id, 'user_name' => $user->name]);
+        if (Cache::has($cacheKey)) {
+            $userIdFromCache = Cache::get($cacheKey); // ganti nama var
+            $userFromCache = User::find($userIdFromCache); // ganti nama var
+
+            if ($userFromCache) {
+                Cache::forget($cacheKey);
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'User token validated.',
+                    'data' => ['user_id' => $userFromCache->id, 'user_name' => $userFromCache->name]
+                ]);
+            } else {
+                Log::warning('User ID from cache not found in DB.', ['cached_user_id' => $userIdFromCache, 'token' => $rvmLoginToken]);
+                Cache::forget($cacheKey);
+                return response()->json(['status' => 'error', 'message' => 'User for token not found.'], 404);
+            }
         }
         return response()->json(['status' => 'error', 'message' => 'Invalid or expired user token.'], 401);
     }

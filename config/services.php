@@ -36,12 +36,12 @@ return [
     ],
 
     'google' => [
-        'api_key' => env('GOOGLE_API_KEY'),
-        // 'api_endpoint' => env('GEMINI_API_ENDPOINT'), // atau endpoint spesifik jika ada beberapa
-        'api_endpoint_flash' => env('GEMINI_API_ENDPOINT_FLASH'), // jika perlu
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-        'redirect' => env('GOOGLE_REDIRECT_URI'),
+        'redirect' => env('GOOGLE_REDIRECT_URI_WEB'),
+
+        'api_key' => env('GOOGLE_API_KEY'),
+        'api_endpoint_flash' => env('GEMINI_API_ENDPOINT_FLASH'),
     ],
 
 ];
