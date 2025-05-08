@@ -142,6 +142,7 @@ class AuthController extends Controller
      */
     public function signInWithGoogleIdToken(Request $request)
     {
+
         $validator = Validator::make($request->all(), [
             'id_token' => 'required|string',
         ]);
@@ -151,6 +152,9 @@ class AuthController extends Controller
         }
 
         $idToken = $request->input('id_token');
+        $clientIdUsed = config('services.google.client_id'); // Ambil nilai config
+        Log::info('Verifying Google ID Token with Client ID:', ['client_id_from_config' => $clientIdUsed]); // Log nilai ini!
+        Log::info('ID Token dari Google:', ['id_token_google' => $idToken]); // Log nilai ini!
 
         try {
             // Anda PERLU 'google/apiclient': composer require google/apiclient
@@ -174,8 +178,16 @@ class AuthController extends Controller
                 Log::warning('Invalid Google ID token received by API.', ['id_token_start' => substr($idToken, 0, 50)]);
                 return response()->json(['status' => 'error', 'message' => 'Invalid Google ID token.'], 401);
             }
-        } catch (\Exception $e) {
-            Log::error('API Google ID Token Sign-In Error: ' . $e->getMessage(), ['trace' => substr($e->getTraceAsString(), 0, 500)]);
+        } catch (\Google\Exception $e) { // Tangkap Google Exception spesifik jika ada
+            Log::error('Google Library Exception during ID Token Sign-In: ' . $e->getMessage(), [
+                'google_exception_code' => $e->getCode(), // Kode error dari library Google
+                'trace' => substr($e->getTraceAsString(), 0, 1000)
+            ]);
+            return response()->json(['status' => 'error', 'message' => 'Google validation library error: ' . $e->getMessage()], 500);
+        } catch (\Exception $e) { // Tangkap exception umum lainnya
+            Log::error('General API Google ID Token Sign-In Error: ' . $e->getMessage(), [
+                'trace' => substr($e->getTraceAsString(), 0, 1000)
+            ]);
             return response()->json(['status' => 'error', 'message' => 'Failed to authenticate with Google. ' . $e->getMessage()], 500);
         }
     }
