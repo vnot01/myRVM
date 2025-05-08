@@ -92,13 +92,17 @@ class GeminiVisionService
      */
     protected function buildPrompt(): string
     {
-        // Prompt yang sudah kita diskusikan sebelumnya
-        $targetPrompt = "bottles, identifying if they are mineral water bottles or other types (like soda, tea, coffee bottles), and whether they appear empty or filled (note potential contents like water, cigarette butts, sticks of wood, etc if visible)";
-        $labelPrompt = "a label describing the bottle type and fill status (e.g., 'empty mineral bottle', 'filled soda bottle - water', 'filled tea bottle - trash')";
+        $targetPrompt = "plastic bottles (like mineral water, soda, tea, coffee bottles) or aluminum cans. Distinguish between different bottle types if possible.";
+        $conditionPrompt = "Determine if each item appears **EMPTY** (no visible liquid, debris, or significant residue) or **FILLED/CONTAMINATED** (contains visible liquid like water, visible trash like cigarette butts or sticks, or is significantly crushed/unsuitable). Be precise about emptiness.";
+        $labelGuidance = "Provide a concise label describing the item type and its condition. Examples: 'EMPTY mineral water bottle', 'EMPTY aluminum can', 'FILLED soda bottle - liquid visible', 'CONTAMINATED PET bottle - trash visible', 'CRUSHED aluminum can'.";
 
-        // Revisi agar output lebih konsisten dan hanya JSON
-        // "Output ONLY a valid JSON list (no extra text or markdown formatting like ```json ... ```)"
-        return "Detect {$targetPrompt}, with no more than 5 items. Output ONLY a valid JSON list (no extra text or markdown formatting like \`\`\`json ... \`\`\`) where each entry contains the 2D bounding box in \"box_2d\" (as [ymin, xmin, ymax, xmax] scaled 0-1000) and {$labelPrompt} in \"label\". If no relevant items are found, output an empty JSON list [].";
+        // Gabungkan dengan instruksi output JSON yang ketat
+        return "Analyze the image to detect {$targetPrompt}. For each detected item, {$conditionPrompt}. " .
+            "Output ONLY a valid JSON list (no extra text or markdown formatting like \`\`\`json ... \`\`\`) containing distinct items found, with a maximum of 5 items. " .
+            "Each entry in the list must be an object containing: " .
+            "1. 'box_2d': The 2D bounding box ([ymin, xmin, ymax, xmax] scaled 0-1000). " .
+            "2. 'label': {$labelGuidance} " .
+            "If no relevant items are found, output an empty JSON list [].";
     }
 
     /**
