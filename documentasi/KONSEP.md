@@ -151,3 +151,108 @@ Sistem akan terdiri dari beberapa komponen utama yang saling berinteraksi:
 ---
 
 ## Progres Pengembangan Saat Ini: **0%**
+
+---
+
+# Proposal Pengembangan Sistem Multi-Aplikasi Reverse Vending Machine (RVM) Terintegrasi (Revisi 2)
+
+Dokumen ini merangkum rencana pengembangan sistem RVM cerdas yang terintegrasi, melibatkan backend API, aplikasi pada mesin RVM fisik, aplikasi pengguna, dan dashboard admin.
+
+**Pemberitahuan Revisi Penting:**
+
+-   **(Revisi 1):** Semua operasi Computer Vision (pra-pemrosesan gambar, pemanggilan Google Gemini Vision API, parsing awal) akan dilakukan **eksklusif di Backend Laravel**.
+-   **(Revisi 2):** Penambahan Fase 6 untuk **Persiapan Deployment & Transisi ke Lingkungan Produksi (Docker)**. Penyesuaian pendaftaran middleware untuk Laravel 11+.
+
+## 1. Arsitektur Umum Sistem
+
+(Sama seperti Revisi 1 - Backend Laravel, Aplikasi RVM, Aplikasi User, Dashboard Admin)
+
+## 2. Detail Komponen Sistem
+
+(Sama seperti Revisi 1, dengan penekanan pada peran masing-masing komponen)
+
+### 2.1. Backend Inti (Central API - Laravel)
+
+(Sama seperti Revisi 1)
+
+### 2.2. Aplikasi RVM (Perangkat Lunak di Mesin Fisik)
+
+(Sama seperti Revisi 1 - Jetson/RPi + Python, ESP32 + C/C++)
+
+### 2.3. Aplikasi User (Mobile/PWA)
+
+(Sama seperti Revisi 1)
+
+### 2.4. Aplikasi Dashboard Admin (Web)
+
+(Sama seperti Revisi 1)
+
+## 3. Kunci API Google Gemini Vision
+
+-   `GOOGLE_API_KEY`: `AIzaSyDZ0-c-n2iAd9R0LM_r76uEN58YRxh9gq8` (di `.env` Backend Laravel).
+-   `GEMINI_API_ENDPOINT_FLASH`: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent` (di `.env` Backend Laravel, akan digunakan sebagai default melalui `config('services.google.api_endpoint_flash')`).
+
+## 4. Peta Progres Pengembangan (Revisi 2)
+
+-   **Fase 1: Pondasi Backend Inti & Desain Database (0% - 25%)** - _SELESAI_
+
+    -   **0-5%**: Setup Proyek Laravel (v12). Konfigurasi `.env` (termasuk API Key Gemini Flash).
+    -   **5-15%**: Finalisasi Desain Database. Migrations (tabel `users`, `reverse_vending_machines`, `deposits`).
+    -   **15-20%**: Model Eloquent dengan relasi.
+    -   **20-25%**: Autentikasi User Dasar (Email/Password, Google Sign-In). Seeder dasar.
+
+-   **Fase 2: Pengembangan API Backend Inti (Termasuk Layanan CV Terpusat) (25% - 55%)** - _SEDANG BERJALAN_
+
+    -   **25-35%**: Implementasi `GeminiVisionService.php` di Laravel. - _SELESAI_
+    -   **35-45%**: Pengembangan API Endpoint `/api/rvm/deposit` (integrasi `GeminiVisionService`, interpretasi hasil Gemini, simpan deposit, update poin, respons ke RVM) dan endpoint RVM lainnya (`/api/rvm/authenticate`, `/api/rvm/validate-user-token`). Pendaftaran middleware `auth.rvm` via `bootstrap/app.php`.
+    -   **45-50%**: Pengembangan API Endpoint untuk Aplikasi User (Auth, Profil, QR Token, Riwayat).
+    -   **50-55%**: Pengembangan API Endpoint Dasar untuk Aplikasi Dashboard Admin (CRUD User/RVM, Statistik placeholder, `/api/admin/vision-test` menggunakan `GeminiVisionService`). Dokumentasi API.
+
+-   **Fase 3: Pengembangan Aplikasi RVM (Perangkat Lunak di Mesin Fisik) (55% - 75%)**
+
+    -   **55-60%**: Setup Jetson Orin Nano. Komunikasi Jetson <-> ESP32.
+    -   **60-70%**: Logika Inti Aplikasi RVM (Python) (ambil gambar, kirim ke API Laravel via header `X-RVM-ApiKey`, terima & tampilkan hasil).
+    -   **70-72%**: Kontroler Sensor/Aktuator (C/C++ di ESP32).
+    -   **72-75%**: Integrasi UI Dasar di LCD RVM. Perakitan prototipe fisik.
+
+-   **Fase 4: Pengembangan Aplikasi User & Aplikasi Dashboard Admin (Frontend) (75% - 90%)**
+
+    -   **75-82%**: Aplikasi User (Mobile/PWA).
+    -   **82-90%**: Aplikasi Dashboard Admin (Web).
+
+-   **Fase 5: Integrasi Menyeluruh, Pengujian, & Penyempurnaan (90% - 97%)**
+
+    -   **90-95%**: Pengujian End-to-End semua aplikasi. Debugging. Pengujian keamanan. UAT.
+    -   **95-97%**: Finalisasi Dokumentasi (User Manual, Technical Documentation).
+
+-   **Fase 6: Persiapan Deployment & Transisi ke Lingkungan Produksi (Docker) (97% - 100%)**
+    -   **97-98%**: **Dockerisasi Aplikasi:** `Dockerfile` (Laravel), `docker-compose.yml` (Laravel, Web Server, MariaDB, MinIO). Konfigurasi jaringan Docker, volume persisten.
+    -   **98-99%**: **Setup Lingkungan Produksi di Server Anda:** Instalasi Docker/Compose. Konfigurasi `.env.production`. DNS, SSL. Strategi backup (MariaDB, MinIO). Migrasi data gambar lama ke MinIO (jika ada & perlu).
+    -   **99-100%**: **Deployment Aplikasi ke Server Produksi (Docker).** Monitoring Awal. Go-Live.
+
+## 5. Konsistensi Data dan Variabel
+
+(Sama seperti Revisi 1 - Penamaan `camelCase`/`PascalCase`/`snake_case`, struktur JSON `snake_case`, RESTful API, pesan error standar, Git conventions)
+
+## 6. Rekomendasi Teknologi Utama
+
+-   **Backend:** PHP (Laravel v12), MariaDB (nantinya di Docker).
+-   **Aplikasi RVM (Jetson/RPi):** Python.
+-   **Kontroler Sensor (ESP32):** C/C++ (Arduino Core).
+-   **Frontend User App:** React Native/Flutter (Mobile) atau Vue.js/React (PWA).
+-   **Frontend Admin Dashboard:** Laravel Blade+Vue.js (Inertia.js) atau SPA Vue.js/React.
+-   **Penyimpanan Gambar Produksi:** MinIO (di Docker).
+-   **Deployment Produksi:** Docker, Docker Compose.
+
+## 7. Pendaftaran Middleware Khusus (Contoh: `AuthenticateRvm`)
+
+Di Laravel 11+ (termasuk kemungkinan Laravel 12), alias untuk route middleware didaftarkan di `bootstrap/app.php` dalam closure `->withMiddleware()`:
+
+```php
+// bootstrap/app.php
+->withMiddleware(function (Middleware $middleware) {
+    $middleware->alias([
+        'auth.rvm' => \App\Http\Middleware\AuthenticateRvm::class,
+    ]);
+})
+```
