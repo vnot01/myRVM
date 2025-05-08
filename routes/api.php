@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController as ApiAuthController;
 use App\Http\Controllers\Api\RvmController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\Admin\AdminDataController;
 
 /*
 |--------------------------------------------------------------------------
@@ -59,3 +60,27 @@ Route::prefix('rvm')->name('api.rvm.')->group(function () {
         ->middleware('auth.rvm'); // Pastikan alias 'auth.rvm' terdaftar
 });
 // --- Akhir Grup Rute untuk Interaksi dengan RVM ---
+
+// --- Grup Rute untuk Admin API ---
+Route::middleware(['auth:sanctum', 'role:Admin,Operator']) // Hanya Admin dan Operator
+      ->prefix('admin')
+      ->name('api.admin.')
+      ->group(function () {
+
+    // Endpoint Statistik
+    Route::get('/stats', [AdminDataController::class, 'getStats'])->name('stats');
+
+    // Endpoint Vision Test
+    Route::post('/vision-test', [AdminDataController::class, 'testVision'])->name('vision.test');
+
+    // --- Endpoint CRUD User (Contoh, perlu AdminUserController) ---
+    // Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+    // Route::get('/users/{user}', [AdminUserController::class, 'show'])->name('users.show');
+    // Route::put('/users/{user}/role', [AdminUserController::class, 'updateRole'])->middleware('role:Admin')->name('users.update_role'); // Hanya Admin super
+
+    // --- Endpoint CRUD RVM (Contoh, perlu AdminRvmController) ---
+    // Route::get('/rvms', [AdminRvmController::class, 'index'])->name('rvms.index');
+    // Route::post('/rvms', [AdminRvmController::class, 'store'])->middleware('role:Admin')->name('rvms.store'); // Hanya Admin
+    // Route::put('/rvms/{rvm}', [AdminRvmController::class, 'update'])->middleware('role:Admin')->name('rvms.update'); // Hanya Admin
+
+});

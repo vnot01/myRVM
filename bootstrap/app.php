@@ -15,7 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         //
         $middleware->alias([
             'auth.rvm' => \App\Http\Middleware\AuthenticateRvm::class,
-            // Tambahkan alias lain jika perlu
+            'role'     => \App\Http\Middleware\CheckRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
