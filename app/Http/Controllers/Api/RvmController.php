@@ -51,19 +51,22 @@ class RvmController extends Controller
         } else {
             Log::info('Processing non-numeric user_identifier...', ['identifier' => $request->input('user_identifier')]);
         }
-
+        Log::info('Deposit - Starting DB Transaction');
         DB::beginTransaction();
         try {
             $imageFile = $request->file('image');
             $imagePath = 'deposits/' . date('Y/m') . '/' . Str::uuid()->toString() . '.' . $imageFile->getClientOriginalExtension();
             $imageFile->storeAs('public', $imagePath);
-
+            Log::info('Deposit - Image stored locally', ['path' => $imagePath]);
+            Log::info('Deposit - Calling GeminiVisionService...');
             $geminiResults = $this->geminiService->analyzeImageFromFile($imageFile);
+            Log::info('Deposit - GeminiVisionService call completed.', ['results_count' => count($geminiResults ?? [])]);
             $firstResult = $geminiResults[0] ?? null;
             $rawLabel = $firstResult['label'] ?? 'unknown';
-
+            Log::info('Deposit - Raw label from Gemini:', ['label' => $rawLabel]);
             // Penanganan jika tidak ada hasil dari Gemini atau label unknown
             if (empty($geminiResults) || $rawLabel === 'unknown') {
+                Log::info('Deposit - No items detected or label is unknown. Rejecting.');
                 $depositData = [
                     'user_id' => $userId,
                     'rvm_id' => $rvm->id,
@@ -92,6 +95,7 @@ class RvmController extends Controller
             $pointsAwarded = 0;
             $needsAction = true;
             $lowerLabel = strtolower($rawLabel);
+            Log::info('Deposit - Starting label interpretation...');
             // ... (blok if/elseif untuk interpretasi label) ...
             if (str_contains($lowerLabel, 'empty') && (str_contains($lowerLabel, 'mineral bottle') || str_contains($lowerLabel, 'water bottle'))) {
                 $detectedType = 'PET_MINERAL_EMPTY';
@@ -115,8 +119,9 @@ class RvmController extends Controller
                 $needsAction = true;
                 Log::info('Unmatched Gemini label:', ['label' => $rawLabel, 'rvm_id' => $rvm->id]);
             }
+            Log::info('Deposit - Label interpretation result:', ['detected_type' => $detectedType, 'points' => $pointsAwarded, 'needs_action' => $needsAction]);
 
-
+            Log::info('Deposit - Creating deposit record...');
             $depositData = [
                 'user_id' => $userId,
                 'rvm_id' => $rvm->id,
@@ -129,20 +134,24 @@ class RvmController extends Controller
                 'deposited_at' => now(),
             ];
             $deposit = Deposit::create($depositData);
-
+            Log::info('Deposit - Deposit record created.', ['deposit_id' => $deposit->id]);
             $currentUserTotalPoints = null; // Inisialisasi
             if ($userInstance && !$needsAction && $pointsAwarded > 0) {
+                Log::info('Deposit - Updating user points...');
                 $userInstance->points += $pointsAwarded;
                 $userInstance->save();
                 // $userInstance->refresh(); // Opsional, tapi $userInstance->points sudah update di memori
                 $currentUserTotalPoints = $userInstance->points; // Ambil poin setelah diupdate
+                Log::info('Deposit - User points updated.', ['user_id' => $userInstance->id, 'new_total' => $currentUserTotalPoints]);
             } elseif ($userInstance) {
                 // Jika user ada tapi item ditolak atau tidak dapat poin
                 $currentUserTotalPoints = $userInstance->points;
             }
 
+            Log::info('Deposit - Committing transaction...');
             DB::commit();
-
+            Log::info('Deposit - Transaction committed.');
+            Log::info('Deposit - Preparing final response...');
             if ($needsAction) {
                 return response()->json([
                     'status' => 'rejected',
@@ -169,7 +178,7 @@ class RvmController extends Controller
                 'rvm_id' => $rvm->id ?? 'RVM NA',
                 'user_identifier' => $request->input('user_identifier'),
             ]);
-            return response()->json(['status' => 'error', 'message' => 'Internal error during deposit.'], 500);
+            return response()->json(['status' => 'error', 'message' => 'An internal server error occurred during deposit processing.'], 500);
         }
     }
 

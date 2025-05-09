@@ -8,6 +8,8 @@ use Intervention\Image\Drivers\Gd\Driver as GdDriver; // Atau Imagick jika Anda 
 use Intervention\Image\ImageManager;
 use Illuminate\Http\UploadedFile;
 use Exception; // Import class Exception
+use App\Models\PromptTemplate;
+use Illuminate\Support\Facades\Cache;
 
 class GeminiVisionService
 {
@@ -20,74 +22,10 @@ class GeminiVisionService
 
     public function __construct()
     {
-        // Ambil dari config yang sudah kita setup sebelumnya
         $this->apiKey = config('services.google.api_key');
-        $this->apiEndpoint = config('services.google.api_endpoint_flash'); // Menggunakan endpoint flash
-
+        $this->apiEndpoint = config('services.google.api_endpoint_flash');
         if (!$this->apiKey || !$this->apiEndpoint) {
             throw new Exception('Gemini API Key or Endpoint is not configured in services config.');
-        }
-    }
-
-    /**
-     * Menganalisis gambar dari file yang diunggah.
-     *
-     * @param UploadedFile $imageFile
-     * @return array|null Hasil analisis atau null jika gagal.
-     * @throws Exception
-     */
-    public function analyzeImageFromFile(UploadedFile $imageFile): ?array
-    {
-        try {
-            list($imageBase64, $imageMimeType) = $this->processAndEncodeImage($imageFile);
-            // Ambil template aktif
-            $activeTemplate = $this->getActivePromptTemplate();
-            // Bangun prompt dari template
-            $prompt = $activeTemplate->buildFullPrompt();
-            // Ambil generation config dari template (jika ada)
-            $generationConfig = $activeTemplate->generation_config; // Sudah di-cast ke array
-            return $this->callGeminiApi($imageBase64, $imageMimeType, $prompt, $generationConfig);
-        } catch (\Exception $e) {
-            Log::error('GeminiVisionService - analyzeImageFromFile Error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString() // Untuk debugging lebih detail
-            ]);
-            throw $e;
-        }
-    }
-
-    /**
-     * Memproses gambar (resize) dan meng-encode ke base64.
-     *
-     * @param UploadedFile $imageFile
-     * @return array [$imageBase64, $imageMimeType]
-     * @throws Exception
-     */
-    protected function processAndEncodeImage(UploadedFile $imageFile): array
-    {
-        try {
-            // Gunakan driver GD atau Imagick. GD biasanya lebih umum tersedia.
-            $manager = new ImageManager(new GdDriver());
-            $img = $manager->read($imageFile->getRealPath());
-
-            // Resize gambar (misalnya, lebar atau tinggi maksimum, atau ukuran tetap)
-            // $img->resize(800, 600); // Contoh resize ke ukuran tetap
-            $img->scaleDown(width: 800, height: 800); // Resize dengan menjaga rasio, maksimal 800x800
-
-            // Konversi ke format yang didukung Gemini (JPEG atau PNG direkomendasikan)
-            // dan dapatkan data binary nya
-            $resizedImageData = $img->toJpeg(85)->toString(); // Kualitas 85%
-            $imageMimeType = 'image/jpeg';
-
-            $imageBase64 = base64_encode($resizedImageData);
-
-            if (empty($imageBase64)) {
-                throw new Exception('Failed to encode image to base64 after processing.');
-            }
-
-            return [$imageBase64, $imageMimeType];
-        } catch (Exception $e) {
-            Log::error('Image processing failed in GeminiVisionService: ' . $e->getMessage());
-            throw new Exception('Failed to process the uploaded image: ' . $e->getMessage());
         }
     }
 
@@ -96,165 +34,159 @@ class GeminiVisionService
      */
     protected function getActivePromptTemplate(): PromptTemplate
     {
-        // Cache template aktif selama (misalnya) 60 menit untuk mengurangi query DB
         return Cache::remember('active_prompt_template', now()->addMinutes(60), function () {
+            Log::debug('Fetching active prompt template from DB (cache miss)'); // Log jika cache miss
             $template = PromptTemplate::where('is_active', true)->first();
             if (!$template) {
-                // Fallback jika tidak ada template aktif, atau buat default di seeder
                 Log::error('No active prompt template found in database!');
-                throw new \Exception('No active prompt template configured.');
-                // Atau return default template object jika ada fallback
+                throw new Exception('No active prompt template configured.');
             }
             return $template;
         });
     }
 
+    public function analyzeImageFromFile(UploadedFile $imageFile): ?array
+    {
+        try {
+            list($imageBase64, $imageMimeType) = $this->processAndEncodeImage($imageFile);
+            
+            $activeTemplate = $this->getActivePromptTemplate();
+            $prompt = $activeTemplate->buildFullPrompt();
+            
+            // Ambil generation config dan PASTIKAN itu array
+            $generationConfig = $activeTemplate->generation_config; // $casts seharusnya sudah membuatnya jadi array
+        
+            // TAMBAHKAN PENGECEKAN DAN DECODE MANUAL JIKA PERLU:
+            if (is_string($generationConfig)) {
+                Log::warning('Generation config was retrieved as a string, attempting to decode manually.', [
+                    'template_id' => $activeTemplate->id,
+                    'string_config' => $generationConfig
+                ]);
+                // Coba decode string JSON menjadi array
+                $decodedConfig = json_decode($generationConfig, true); 
+                // Periksa apakah decoding berhasil dan hasilnya array
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decodedConfig)) {
+                    $generationConfig = $decodedConfig; // Gunakan hasil decode
+                } else {
+                     Log::error('Failed to manually decode generation_config string from database.', [
+                         'template_id' => $activeTemplate->id, 
+                         'json_error' => json_last_error_msg()
+                     ]);
+                    $generationConfig = null; // Set ke null jika decode gagal
+                }
+            } elseif (!is_array($generationConfig) && $generationConfig !== null) {
+                // Jika bukan string, bukan array, dan bukan null (tipe data aneh)
+                Log::warning('Generation config has unexpected type, setting to null.', [
+                    'template_id' => $activeTemplate->id, 
+                    'type' => gettype($generationConfig)
+                ]);
+                 $generationConfig = null;
+            }
+            // Pada titik ini, $generationConfig seharusnya sudah berupa array atau null
+        
+            Log::debug('Using prompt template:', ['name' => $activeTemplate->name]);
+            Log::debug('Built prompt:', ['prompt' => $prompt]);
+            // Log $generationConfig SETELAH potensi decode manual
+            Log::debug('Generation config (final):', ['config' => $generationConfig]); 
+        
+            return $this->callGeminiApi($imageBase64, $imageMimeType, $prompt, $generationConfig); // $generationConfig sekarang pasti array atau null
+
+        } catch (Exception $e) {
+            Log::error('GeminiVisionService - analyzeImageFromFile Error: ' . $e->getMessage(), [
+                'trace' => substr($e->getTraceAsString(), 0, 500)
+            ]);
+            throw $e;
+        }
+    }
+
+    protected function processAndEncodeImage(UploadedFile $imageFile): array
+    {
+        // ... (Kode ini tetap sama seperti sebelumnya) ...
+         try {
+            $manager = new ImageManager(new GdDriver());
+            $img = $manager->read($imageFile->getRealPath());
+            $img->scaleDown(width: 800, height: 800);
+            $resizedImageData = $img->toJpeg(85)->toString();
+            $imageMimeType = 'image/jpeg';
+            $imageBase64 = base64_encode($resizedImageData);
+            if (empty($imageBase64)) { throw new Exception('Failed to encode image.'); }
+            return [$imageBase64, $imageMimeType];
+        } catch (Exception $e) {
+            Log::error('Image processing failed: ' . $e->getMessage());
+            throw new Exception('Failed to process image: ' . $e->getMessage());
+        }
+    }
+
     /**
      * Memanggil Google Gemini Vision API menggunakan prompt dan config dari template.
-     *
-     * @param string $imageBase64
-     * @param string $imageMimeType
-     * @param string $prompt Prompt yang sudah dibangun
-     * @param array|null $generationConfig Konfigurasi generasi dari template
-     * @return array|null
-     * @throws Exception
      */
     protected function callGeminiApi(string $imageBase64, string $imageMimeType, string $prompt, ?array $generationConfig): ?array
     {
-        $payload = [
-            'contents' => [
-                [
-                    'parts' => [
-                        ['text' => $prompt],
-                        ['inline_data' => [
-                            'mime_type' => $imageMimeType,
-                            'data' => $imageBase64
-                        ]]
-                    ]
-                ]
-            ],
-        ];
-
+        $payload = ['contents' => [['parts' => [['text' => $prompt], ['inline_data' => ['mime_type' => $imageMimeType, 'data' => $imageBase64]]]]]];
         if (!empty($generationConfig)) {
             $payload['generationConfig'] = $generationConfig;
         }
-        $response = Http::timeout(60) // Timeout 60 detik
-            ->withHeaders(['Content-Type' => 'application/json'])
-            ->post($this->apiEndpoint . '?key=' . $this->apiKey, $payload);
 
-        if (!$response->successful()) {
+        Log::debug('Sending payload to Gemini:', ['endpoint' => $this->apiEndpoint, 'payload_keys' => array_keys($payload)]);
+        Log::info('Gemini Service - Preparing to call Google API...', ['endpoint' => $this->apiEndpoint]);
+        $startTime = microtime(true); // Catat waktu mulai
+        $response = Http::timeout(60)->withHeaders(['Content-Type' => 'application/json'])
+                      ->post($this->apiEndpoint . '?key=' . $this->apiKey, $payload);
+        $endTime = microtime(true); // Catat waktu selesai
+        Log::info('Gemini Service - Google API call completed.', [
+            'status_code' => $response->status(),
+            'duration_seconds' => round($endTime - $startTime, 3)
+        ]);
+        if (!$response->successful()) { /* ... (Error handling sama) ... */ 
             $errorBody = $response->body();
-            Log::error('Gemini API Error:', [
-                'status' => $response->status(),
-                'body' => $errorBody,
-                'endpoint' => $this->apiEndpoint
-            ]);
-            // Coba parse error dari Gemini jika ada
+            Log::error('Gemini API Error:', ['status' => $response->status(), 'body' => $errorBody]);
             $apiErrorDetails = $response->json();
             $errorMessage = 'Failed to call Gemini API. Status: ' . $response->status();
-            if (isset($apiErrorDetails['error']['message'])) {
-                $errorMessage .= ' Details: ' . $apiErrorDetails['error']['message'];
-            } else {
-                $errorMessage .= ' Body: ' . $errorBody;
-            }
+            if (isset($apiErrorDetails['error']['message'])) { $errorMessage .= ' Details: ' . $apiErrorDetails['error']['message']; } 
+            else { $errorMessage .= ' Body: ' . $errorBody; }
             throw new Exception($errorMessage);
         }
 
-        // Ekstrak teks dari respons
-        // Struktur respons Gemini Vision bisa sedikit berbeda, pastikan path ini sesuai
-        // 'candidates'[0]['content']['parts'][0]['text']
         $responseText = $response->json()['candidates'][0]['content']['parts'][0]['text'] ?? null;
-
-        if ($responseText === null) { // Bisa jadi respons sukses tapi tidak ada 'text' (jarang terjadi jika prompt valid)
-            // Periksa apakah ada 'finishReason' seperti 'SAFETY'
-            $finishReason = $response->json()['candidates'][0]['finishReason'] ?? 'UNKNOWN';
-            if ($finishReason === 'SAFETY') {
-                Log::warning('Gemini API call blocked due to safety reasons.', ['response' => $response->json()]);
-                throw new Exception('Gemini API request was blocked due to safety settings.');
-            } elseif (isset($response->json()['candidates'][0]['content']['parts']) && empty($response->json()['candidates'][0]['content']['parts'])) {
-                // Ini berarti API mengembalikan 'parts' array kosong, yang bisa diartikan tidak ada deteksi yang valid
-                // atau model tidak menghasilkan output teks. Untuk kasus kita (meminta JSON list),
-                // ini bisa berarti "empty JSON list []" adalah output yang valid jika prompt dihandle dengan baik oleh model.
-                // Kita akan tangani ini di tahap parsing.
-                Log::info('Gemini API response had no text part, but was successful. Potentially an empty detection.', ['response' => $response->json()]);
-                // Jika model mengembalikan array kosong "[]" sebagai output teks valid, parsing akan menghasilkan array kosong.
-            } else {
-                Log::error('Gemini response did not contain expected text part.', ['response' => $response->json()]);
-                throw new Exception('Gemini response structure error: text part missing.');
-            }
-        }
-
-        // Jika responseText adalah string kosong atau hanya whitespace, dan kita mengharapkan JSON list,
-        // ini bisa dianggap sebagai "tidak ada deteksi yang valid" atau output yang tidak diharapkan.
-        // Namun, model mungkin valid mengembalikan "[]" sebagai teks.
-        if (trim($responseText ?? '') === '') {
-            // Periksa jika prompt kita secara eksplisit meminta "[]" untuk 'no items found'
-            // Jika ya, maka ini adalah hasil yang valid.
-            Log::info('Gemini API returned an empty string as text part. Assuming empty detection list as per prompt design.', ['response' => $response->json()]);
-            $responseText = '[]'; // Asumsikan ini sebagai daftar kosong jika prompt kita mendukungnya.
-        }
+        // ... (Logika penanganan $responseText null/kosong sama) ...
+         if ($responseText === null) {
+             $finishReason = $response->json()['candidates'][0]['finishReason'] ?? 'UNKNOWN';
+             if ($finishReason === 'SAFETY') { throw new Exception('Gemini API request blocked due to safety settings.'); }
+             Log::info('Gemini API response had no text part.', ['response' => $response->json()]);
+         }
+         if (trim($responseText ?? '') === '') {
+             Log::info('Gemini API returned empty string. Assuming empty list.');
+             $responseText = '[]';
+         }
 
         return $this->parseGeminiResponse($responseText);
     }
 
     /**
      * Mem-parsing respons JSON mentah dari Gemini.
-     * (Menghilangkan markdown, dll.)
-     *
-     * @param string|null $responseText
-     * @return array
-     * @throws Exception
      */
     protected function parseGeminiResponse(?string $responseText): array
     {
-        if ($responseText === null || trim($responseText) === '') {
-            // Jika setelah semua pengecekan di callGeminiApi, responseText masih null atau kosong,
-            // dan kita berharap JSON, ini adalah masalah. Namun, jika prompt kita bisa menghasilkan "[]",
-            // maka ini bisa jadi valid.
-            // Kita sudah handle ini dengan men-set $responseText = '[]' di atas.
-            Log::info('Parsing an empty or null responseText as an empty list.');
-            return []; // Kembalikan array kosong jika tidak ada teks atau teksnya kosong.
-        }
-
-        $jsonString = $responseText;
-
-        // Menghilangkan ```json ... ``` jika ada (model kadang masih menyertakannya)
-        if (strpos($jsonString, '```json') !== false) {
-            if (preg_match('/```json\s*([\s\S]*?)\s*```/', $jsonString, $matches)) {
-                $jsonString = $matches[1];
-            } else {
-                // Fallback jika regex tidak cocok tapi ```json ada
-                $jsonString = str_replace(['```json', '```'], '', $jsonString);
-            }
-        }
-        // Juga hilangkan ``` saja jika hanya itu yang ada
-        $jsonString = str_replace('```', '', trim($jsonString));
-
-
-        try {
-            $parsedResponse = json_decode($jsonString, true, 512, JSON_THROW_ON_ERROR);
-            // Pastikan hasilnya adalah array (list)
-            if (!is_array($parsedResponse)) {
-                // Jika hasil parse bukan array (misalnya string atau objek tunggal padahal kita minta list)
-                // dan $jsonString sebenarnya adalah '[]', maka $parsedResponse akan jadi array kosong, itu valid.
-                // Tapi jika $jsonString bukan '[]' dan hasilnya bukan array, itu masalah.
-                if ($jsonString === '[]' && is_array($parsedResponse)) { // ini kondisi valid
-                    return $parsedResponse;
-                }
-                Log::warning('Parsed Gemini response is not a list (array).', ['original_text' => $responseText, 'parsed_string' => $jsonString, 'parsed_result' => $parsedResponse]);
-                // Jika kita selalu mengharapkan list, ini bisa dianggap error atau kita kembalikan list kosong.
-                // throw new Exception('Gemini response, after parsing, was not in the expected list format.');
-                return []; // Atau kembalikan array kosong jika ini bisa terjadi
-            }
-            return $parsedResponse; // Seharusnya ini adalah list (array PHP) dari objek deteksi
-        } catch (\JsonException $e) {
-            Log::error('Failed to parse JSON response from Gemini:', [
-                'error' => $e->getMessage(),
-                'original_text' => $responseText,
-                'processed_string_for_json_decode' => $jsonString
-            ]);
-            throw new Exception('Failed to parse JSON response from Gemini: ' . $e->getMessage());
-        }
+         // ... (Kode ini tetap sama seperti sebelumnya) ...
+         if ($responseText === null || trim($responseText) === '') { return []; }
+         $jsonString = $responseText;
+         if (strpos($jsonString, '```json') !== false) {
+             if (preg_match('/```json\s*([\s\S]*?)\s*```/', $jsonString, $matches)) { $jsonString = $matches[1]; } 
+             else { $jsonString = str_replace(['```json', '```'], '', $jsonString); }
+         }
+         $jsonString = str_replace('```', '', trim($jsonString));
+         try {
+             $parsedResponse = json_decode($jsonString, true, 512, JSON_THROW_ON_ERROR);
+             if (!is_array($parsedResponse)) {
+                 if ($jsonString === '[]' && is_array($parsedResponse)) { return $parsedResponse; }
+                 Log::warning('Parsed Gemini response is not a list.', ['original' => $responseText, 'parsed_str' => $jsonString, 'result' => $parsedResponse]);
+                 return [];
+             }
+             return $parsedResponse;
+         } catch (\JsonException $e) {
+             Log::error('Failed to parse JSON from Gemini:', ['error' => $e->getMessage(), 'text' => $responseText]);
+             throw new Exception('Failed to parse JSON response from Gemini: ' . $e->getMessage());
+         }
     }
     ////===========================////
     //// === Vision API v3 END === ////

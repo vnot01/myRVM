@@ -69,7 +69,6 @@ Route::middleware(['auth:sanctum', 'role:Admin,Operator']) // Hanya Admin dan Op
 
     // Endpoint Statistik
     Route::get('/stats', [AdminDataController::class, 'getStats'])->name('stats');
-
     // Endpoint Vision Test
     Route::post('/vision-test', [AdminDataController::class, 'testVision'])->name('vision.test');
 
