@@ -203,27 +203,32 @@ class RvmController extends Controller
         if ($validator->fails()) {
             return response()->json(['status' => 'error', 'message' => 'User token is required/invalid format.', 'errors' => $validator->errors()], 422);
         }
-
         $rvmLoginToken = $request->input('user_token');
         $cacheKey = 'rvm_login_token:' . $rvmLoginToken;
-
+        Log::info('RVM_VALIDATE_TOKEN: Received token from RPi', ['token' => $rvmLoginToken, 'cache_key' => $cacheKey]);
+        Log::info('RVM_VALIDATE_TOKEN: Current CACHE_DRIVER', ['driver' => config('cache.default')]);
         if (Cache::has($cacheKey)) {
             $userIdFromCache = Cache::get($cacheKey); // ganti nama var
             $userFromCache = User::find($userIdFromCache); // ganti nama var
-
-            if ($userFromCache) {
+            Log::info('RVM_VALIDATE_TOKEN: Token found in cache.', ['user_id_from_cache' => $userIdFromCache]);
+            $user = \App\Models\User::find($userIdFromCache);
+            if ($user) {
                 Cache::forget($cacheKey);
+                Log::info('RVM_VALIDATE_TOKEN: cacheKey.', ['user_id' => $userFromCache->id]);
+                Log::info('RVM_VALIDATE_TOKEN: Token validated. User found.', ['user_id' => $user->id, 'token_would_be_forgotten' => $rvmLoginToken]);
                 return response()->json([
                     'status' => 'success',
                     'message' => 'User token validated.',
                     'data' => ['user_id' => $userFromCache->id, 'user_name' => $userFromCache->name]
                 ]);
             } else {
-                Log::warning('User ID from cache not found in DB.', ['cached_user_id' => $userIdFromCache, 'token' => $rvmLoginToken]);
+                Log::warning('RVM_VALIDATE_TOKEN: User ID not found in DB.', ['token' => $rvmLoginToken]);
+                Log::warning('RVM_VALIDATE_TOKEN: User ID from cache.', ['cached_user_id' => $userIdFromCache, 'token' => $rvmLoginToken]);
                 Cache::forget($cacheKey);
                 return response()->json(['status' => 'error', 'message' => 'User for token not found.'], 404);
             }
         }
+        Log::warning('RVM_VALIDATE_TOKEN: Token not found in cache or expired.', ['token' => $rvmLoginToken]);
         return response()->json(['status' => 'error', 'message' => 'Invalid or expired user token.'], 401);
     }
 }
