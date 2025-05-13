@@ -67,6 +67,28 @@ class UserController extends Controller
         ]);
     }
 
+    public function checkRvmScanStatus(Request $request)
+    {
+        $token = $request->query('token');
+
+        if (empty($token)) {
+            return response()->json(['status' => 'error', 'message' => 'RVM token parameter is required.'], 400);
+        }
+
+        $dataCacheKey = 'rvm_token_data:' . $token;
+        $tokenData = Cache::get($dataCacheKey);
+
+        if ($tokenData) {
+            // Token ditemukan di cache, kembalikan statusnya
+            Log::info("CheckScanStatus: Token data found for '$token'.", ['status' => $tokenData['status']]);
+            return response()->json(['status' => $tokenData['status']]); // status bisa 'pending_scan' atau 'scanned_and_validated'
+        } else {
+            // Token tidak ditemukan di cache, berarti sudah expired atau tidak pernah ada
+            Log::info("CheckScanStatus: Token data not found for '$token', assuming expired/invalid.");
+            return response()->json(['status' => 'token_expired_or_invalid']);
+        }
+    }
+    
        /** 
         * Metode Generate RVM Login Token Versi 1 
         **/ 
