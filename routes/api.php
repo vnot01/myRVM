@@ -6,6 +6,9 @@ use App\Http\Controllers\Api\AuthController as ApiAuthController;
 use App\Http\Controllers\Api\RvmController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\Admin\AdminDataController;
+use App\Http\Controllers\WebhookController;
+
+Route::post('/github-webhook', [WebhookController::class, 'handleGithub'])->name('webhook.github');
 
 /*
 |--------------------------------------------------------------------------
