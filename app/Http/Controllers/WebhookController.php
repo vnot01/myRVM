@@ -16,7 +16,7 @@ class WebhookController extends Controller
         $secret = env('GITHUB_WEBHOOK_SECRET'); // Ambil dari .env
 
         if (empty($secret)) {
-            Log::error('GITHUB WEBHOOK SECRET NOT SET IN in .env');
+            Log::error('GITHUB_WEBHOOK_SECRET NOT SET IN in .env');
             return response()->json(['message' => 'Webhook secret not configured on server.'], 500);
         }
 
