@@ -4,7 +4,7 @@ echo ">>> Starting application update from GitHub..."
 cd Documents/mysuperapps/myRVM || { echo "Failed to cd to project directory"; exit 1; }
 
 echo ">>> Pulling latest changes from origin main..."
-git pull origin main
+git pull origin master
 
 echo ">>> Installing/updating Composer dependencies..."
 composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
