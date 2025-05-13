@@ -204,31 +204,106 @@ class RvmController extends Controller
             return response()->json(['status' => 'error', 'message' => 'User token is required/invalid format.', 'errors' => $validator->errors()], 422);
         }
         $rvmLoginToken = $request->input('user_token');
-        $cacheKey = 'rvm_login_token:' . $rvmLoginToken;
-        Log::info('RVM_VALIDATE_TOKEN: Received token from RPi', ['token' => $rvmLoginToken, 'cache_key' => $cacheKey]);
-        Log::info('RVM_VALIDATE_TOKEN: Current CACHE_DRIVER', ['driver' => config('cache.default')]);
-        if (Cache::has($cacheKey)) {
-            $userIdFromCache = Cache::get($cacheKey); // ganti nama var
-            $userFromCache = User::find($userIdFromCache); // ganti nama var
-            Log::info('RVM_VALIDATE_TOKEN: Token found in cache.', ['user_id_from_cache' => $userIdFromCache]);
-            $user = \App\Models\User::find($userIdFromCache);
+        // $cacheKey = 'rvm_login_token:' . $rvmLoginToken; // Key lama untuk user_id saja
+
+        $dataCacheKey = 'rvm_token_data:' . $rvmLoginToken; // Key baru untuk data lengkap
+        Log::info('RVM_VALIDATE_TOKEN: Received token from RPi', ['token' => $rvmLoginToken, 'data_cache_key' => $dataCacheKey]);
+
+        if (Cache::has($dataCacheKey)) {
+            $tokenData = Cache::get($dataCacheKey);
+            $user = User::find($tokenData['user_id']);
+
             if ($user) {
-                Cache::forget($cacheKey);
-                Log::info('RVM_VALIDATE_TOKEN: cacheKey.', ['user_id' => $userFromCache->id]);
-                Log::info('RVM_VALIDATE_TOKEN: Token validated. User found.', ['user_id' => $user->id, 'token_would_be_forgotten' => $rvmLoginToken]);
+                // Update status token menjadi 'scanned_and_validated'
+                // Biarkan cache ini expired sesuai TTL aslinya atau perbarui TTL jika perlu
+                Cache::put($dataCacheKey, [
+                    'user_id' => $tokenData['user_id'],
+                    'status' => 'scanned_and_validated', // <-- UPDATE STATUS
+                    'expires_at' => $tokenData['expires_at'],
+                ], $tokenData['expires_at']); // Gunakan expires_at asli
+
+                Log::info('RVM_VALIDATE_TOKEN: Token status updated to "scanned_and_validated".', ['user_id' => $user->id, 'data_cache_key' => $dataCacheKey]);
+
                 return response()->json([
                     'status' => 'success',
                     'message' => 'User token validated.',
-                    'data' => ['user_id' => $userFromCache->id, 'user_name' => $userFromCache->name]
+                    'data' => ['user_id' => $user->id, 'user_name' => $user->name]
                 ]);
             } else {
-                Log::warning('RVM_VALIDATE_TOKEN: User ID not found in DB.', ['token' => $rvmLoginToken]);
-                Log::warning('RVM_VALIDATE_TOKEN: User ID from cache.', ['cached_user_id' => $userIdFromCache, 'token' => $rvmLoginToken]);
-                Cache::forget($cacheKey);
+                // ... (handle user not found, hapus cache jika perlu) ...
+                Log::warning('RVM_VALIDATE_TOKEN: User ID not found in DB for token.', ['token_data' => $tokenData]);
+                Cache::forget($dataCacheKey);
                 return response()->json(['status' => 'error', 'message' => 'User for token not found.'], 404);
             }
         }
-        Log::warning('RVM_VALIDATE_TOKEN: Token not found in cache or expired.', ['token' => $rvmLoginToken]);
+        Log::warning('RVM_VALIDATE_TOKEN: Token data not found in cache or expired.', ['token' => $rvmLoginToken]);
         return response()->json(['status' => 'error', 'message' => 'Invalid or expired user token.'], 401);
+    }
+    // /** 
+    //  * Metode Validate User Token versi 1 
+    //  */
+    // public function validateUserToken(Request $request)
+    // {
+    //     // ... (kode sama, pastikan User::find() di dalamnya)
+    //     $validator = Validator::make($request->all(), [
+    //         'user_token' => 'required|string|size:40'
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json(['status' => 'error', 'message' => 'User token is required/invalid format.', 'errors' => $validator->errors()], 422);
+    //     }
+    //     $rvmLoginToken = $request->input('user_token');
+    //     $cacheKey = 'rvm_login_token:' . $rvmLoginToken;
+    //     Log::info('RVM_VALIDATE_TOKEN: Received token from RPi', ['token' => $rvmLoginToken, 'cache_key' => $cacheKey]);
+    //     Log::info('RVM_VALIDATE_TOKEN: Current CACHE_DRIVER', ['driver' => config('cache.default')]);
+    //     if (Cache::has($cacheKey)) {
+    //         $userIdFromCache = Cache::get($cacheKey); // ganti nama var
+    //         $userFromCache = User::find($userIdFromCache); // ganti nama var
+    //         Log::info('RVM_VALIDATE_TOKEN: Token found in cache.', ['user_id_from_cache' => $userIdFromCache]);
+    //         $user = \App\Models\User::find($userIdFromCache);
+    //         if ($user) {
+    //             Cache::forget($cacheKey);
+    //             Log::info('RVM_VALIDATE_TOKEN: cacheKey.', ['user_id' => $userFromCache->id]);
+    //             Log::info('RVM_VALIDATE_TOKEN: Token validated. User found.', ['user_id' => $user->id, 'token_would_be_forgotten' => $rvmLoginToken]);
+    //             // Menyimpan Status "Validated" untuk token ini
+    //             $statusCacheKey = 'scan_status:' . $rvmLoginToken;
+    //             Cache::put($statusCacheKey, 'validated', now()->addMinutes(2)); // Simpan status selama 2 menit
+    //             Log::info('RVM_VALIDATE_TOKEN: Scan status for token set to "validated".', ['status_cache_key' => $statusCacheKey]);
+    //             return response()->json([
+    //                 'status' => 'success',
+    //                 'message' => 'User token validated.',
+    //                 'data' => ['user_id' => $userFromCache->id, 'user_name' => $userFromCache->name]
+    //             ]);
+    //         } else {
+    //             Log::warning('RVM_VALIDATE_TOKEN: User ID not found in DB.', ['token' => $rvmLoginToken]);
+    //             Log::warning('RVM_VALIDATE_TOKEN: User ID from cache.', ['cached_user_id' => $userIdFromCache, 'token' => $rvmLoginToken]);
+    //             Cache::forget($cacheKey);
+    //             return response()->json(['status' => 'error', 'message' => 'User for token not found.'], 404);
+    //         }
+    //     }
+    //     Log::warning('RVM_VALIDATE_TOKEN: Token not found in cache or expired.', ['token' => $rvmLoginToken]);
+    //     return response()->json(['status' => 'error', 'message' => 'Invalid or expired user token.'], 401);
+    // }
+
+    public function checkRvmScanStatus(Request $request)
+    {
+        $token = $request->query('token');
+
+        if (empty($token)) {
+            return response()->json(['status' => 'error', 'message' => 'RVM token parameter is required.'], 400);
+        }
+
+        $dataCacheKey = 'rvm_token_data:' . $token;
+        $tokenData = Cache::get($dataCacheKey);
+
+        if ($tokenData) {
+            // Token ditemukan di cache, kembalikan statusnya
+            Log::info("CheckScanStatus: Token data found for '$token'.", ['status' => $tokenData['status']]);
+            return response()->json(['status' => $tokenData['status']]); // status bisa 'pending_scan' atau 'scanned_and_validated'
+        } else {
+            // Token tidak ditemukan di cache, berarti sudah expired atau tidak pernah ada
+            Log::info("CheckScanStatus: Token data not found for '$token', assuming expired/invalid.");
+            return response()->json(['status' => 'token_expired_or_invalid']);
+        }
     }
 }

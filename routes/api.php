@@ -38,6 +38,7 @@ Route::prefix('auth')->name('api.auth.')->group(function () {
 Route::middleware('auth:sanctum')->prefix('user')->name('api.user.')->group(function () {
     Route::get('/deposit-history', [UserController::class, 'depositHistory'])->name('deposit_history');
     Route::post('/generate-rvm-token', [UserController::class, 'generateRvmLoginToken'])->name('generate_rvm_token');
+    Route::get('/check-rvm-scan-status', [UserController::class, 'checkRvmScanStatus'])->name('checkRvmScanStatus');
     // Tambahkan rute lain terkait user di sini jika ada, misalnya update profil, dll.
 });
 // --- Grup Rute untuk Fitur RVM yang Sudah Terotentikasi API ---
