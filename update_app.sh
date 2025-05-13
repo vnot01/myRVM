@@ -1,7 +1,7 @@
 #!/bin/bash
 echo ">>> Starting application update from GitHub..."
 # Navigasi ke direktori proyek Anda
-cd Documents/mysuperapps/myRVM || { echo "Failed to cd to project directory"; exit 1; }
+cd ~/Documents/mysuperapps/myRVM || { echo "Failed to cd to project directory"; exit 1; }
 
 echo ">>> Pulling latest changes from origin main..."
 git pull origin master
