@@ -9,11 +9,13 @@
         "php": "^8.2",
         "google/apiclient": "*",
         "guzzlehttp/guzzle": "^7.9",
+        "inertiajs/inertia-laravel": "^2.0",
         "intervention/image": "^3.11",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.0",
         "laravel/socialite": "^5.20",
-        "laravel/tinker": "^2.10.1"
+        "laravel/tinker": "^2.10.1",
+        "tightenco/ziggy": "^2.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

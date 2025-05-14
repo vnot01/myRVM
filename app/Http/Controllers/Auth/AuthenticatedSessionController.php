@@ -7,16 +7,21 @@ use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\View\View;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
     /**
      * Display the login view.
      */
-    public function create(): View
+    public function create(): Response
     {
-        return view('auth.login');
+        return Inertia::render('Auth/Login', [
+            'canResetPassword' => Route::has('password.request'),
+            'status' => session('status'),
+        ]);
     }
 
     /**
@@ -25,10 +30,17 @@ class AuthenticatedSessionController extends Controller
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
-
         $request->session()->regenerate();
+        $user = Auth::user(); // Dapatkan instance user yang sedang login
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // Logika redirect berdasarkan role
+        if ($user && ($user->role === 'Admin' || $user->role === 'Operator')) {
+            // Jika Admin atau Operator, arahkan ke admin dashboard
+            return redirect()->intended(route('admin.dashboard', absolute: false));
+        }else{
+            // Jika bukan Admin atau Operator, arahkan ke dashboard pengguna
+            return redirect()->intended(route('dashboard', absolute: false));
+        }
     }
 
     /**
@@ -37,11 +49,8 @@ class AuthenticatedSessionController extends Controller
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('web')->logout();
-
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
-
         return redirect('/');
     }
 }
