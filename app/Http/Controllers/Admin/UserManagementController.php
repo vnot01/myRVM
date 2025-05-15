@@ -14,6 +14,8 @@ class UserManagementController extends Controller
     public function index()
     {
         //
+        // Logika untuk mengambil Users nanti
+        return Inertia::render('Admin/Users/Index', ['users' => [] /* data dummy dulu */]);
     }
 
     /**

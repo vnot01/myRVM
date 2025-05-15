@@ -14,6 +14,8 @@ class RvmManagementController extends Controller
     public function index()
     {
         //
+        // Logika untuk mengambil RVMs nanti
+        return Inertia::render('Admin/RVMs/Index', ['rvms' => [] /* data dummy dulu */]);
     }
 
     /**
