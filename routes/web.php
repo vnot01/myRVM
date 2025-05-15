@@ -39,7 +39,6 @@ Route::middleware(['auth', 'verified', 'role:Admin,Operator'])->prefix('admin')-
     Route::patch('/rvms/{rvm}', [RvmManagementController::class, 'update'])->name('rvms.update')->middleware('role:Admin');
     Route::delete('/rvms/{rvm}', [RvmManagementController::class, 'destroy'])->name('rvms.destroy')->middleware('role:Admin');
 
-
     // Rute Manajemen User
     Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
     // ... rute CRUD user lainnya ...

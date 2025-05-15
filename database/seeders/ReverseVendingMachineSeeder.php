@@ -44,7 +44,7 @@ class ReverseVendingMachineSeeder extends Seeder
                 'latitude' => -6.2023456,
                 'longitude' => 106.8190123,
                 'status' => 'inactive',
-                'api_key' => 'RVM004-' . Str::random(32)
+                'api_key' => 'RVM0'.Str::random(2).'-' . Str::random(32)
             ],
             [
                 'name' => 'RVM Stasiun Kereta Kota Pintu Utara',
@@ -52,7 +52,87 @@ class ReverseVendingMachineSeeder extends Seeder
                 'latitude' => -6.1352000, // Contoh Latitude Jakarta Kota
                 'longitude' => 106.8133000, // Contoh Longitude Jakarta Kota
                 'status' => 'full',
-                'api_key' => 'RVM005-' . Str::random(32)
+                'api_key' => 'RVM0'.Str::random(2).'-' . Str::random(32)
+            ],
+            [
+                'name' => 'RVM Kantin Pusat Gedung A',
+                'location_description' => 'Sebelah pintu masuk utama Kantin Pusat, Gedung A, Lantai 1',
+                'latitude' => -6.2000000, // Contoh Latitude Jakarta
+                'longitude' => 106.8166644, // Contoh Longitude Jakarta
+                'status' => 'active',
+                'api_key' => 'RVM0'.Str::random(2).'-' . Str::random(32) // Generate unique API key
+            ],
+            [
+                'name' => 'RVM Perpustakaan Universitas Sayap Barat',
+                'location_description' => 'Lobi Perpustakaan, dekat meja informasi',
+                'latitude' => -6.2012345,
+                'longitude' => 106.8178901,
+                'status' => 'active',
+                'api_key' => 'RVM0'.Str::random(2).'-' . Str::random(32)
+            ],
+            [
+                'name' => 'RVM Asrama Mahasiswa Blok C',
+                'location_description' => 'Area umum Asrama Mahasiswa Blok C, dekat vending machine minuman',
+                'latitude' => -6.1987654,
+                'longitude' => 106.8154321,
+                'status' => 'maintenance',
+                'api_key' => 'RVM0'.Str::random(2).'-' . Str::random(32)
+            ],
+            [
+                'name' => 'RVM Fakultas Teknik Ruang Terbuka',
+                'location_description' => 'Plaza Fakultas Teknik, samping taman',
+                'latitude' => -6.2023456,
+                'longitude' => 106.8190123,
+                'status' => 'inactive',
+                'api_key' => 'RVM0'.Str::random(2).'-' . Str::random(32)
+            ],
+            [
+                'name' => 'RVM Stasiun Kereta Kota Pintu Utara',
+                'location_description' => 'Dekat loket tiket Pintu Utara Stasiun Kereta Kota',
+                'latitude' => -6.1352000, // Contoh Latitude Jakarta Kota
+                'longitude' => 106.8133000, // Contoh Longitude Jakarta Kota
+                'status' => 'full',
+                'api_key' => 'RVM0'.Str::random(2).'-' . Str::random(32)
+            ],
+            [
+                'name' => 'RVM Kantin Pusat Gedung A',
+                'location_description' => 'Sebelah pintu masuk utama Kantin Pusat, Gedung A, Lantai 1',
+                'latitude' => -6.2000000, // Contoh Latitude Jakarta
+                'longitude' => 106.8166644, // Contoh Longitude Jakarta
+                'status' => 'active',
+                'api_key' => 'RVM0'.Str::random(2).'-' . Str::random(32) // Generate unique API key
+            ],
+            [
+                'name' => 'RVM Perpustakaan Universitas Sayap Barat',
+                'location_description' => 'Lobi Perpustakaan, dekat meja informasi',
+                'latitude' => -6.2012345,
+                'longitude' => 106.8178901,
+                'status' => 'active',
+                'api_key' => 'RVM0'.Str::random(2).'-' . Str::random(32)
+            ],
+            [
+                'name' => 'RVM Asrama Mahasiswa Blok C',
+                'location_description' => 'Area umum Asrama Mahasiswa Blok C, dekat vending machine minuman',
+                'latitude' => -6.1987654,
+                'longitude' => 106.8154321,
+                'status' => 'maintenance',
+                'api_key' => 'RVM0'.Str::random(2).'-' . Str::random(32)
+            ],
+            [
+                'name' => 'RVM Fakultas Teknik Ruang Terbuka',
+                'location_description' => 'Plaza Fakultas Teknik, samping taman',
+                'latitude' => -6.2023456,
+                'longitude' => 106.8190123,
+                'status' => 'inactive',
+                'api_key' => 'RVM0'.Str::random(2).'-' . Str::random(32)
+            ],
+            [
+                'name' => 'RVM Stasiun Kereta Kota Pintu Utara',
+                'location_description' => 'Dekat loket tiket Pintu Utara Stasiun Kereta Kota',
+                'latitude' => -6.1352000, // Contoh Latitude Jakarta Kota
+                'longitude' => 106.8133000, // Contoh Longitude Jakarta Kota
+                'status' => 'full',
+                'api_key' => 'RVM0'.Str::random(2).'-' . Str::random(32)
             ],
         ];
 
