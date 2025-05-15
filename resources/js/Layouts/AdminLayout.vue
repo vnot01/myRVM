@@ -94,7 +94,7 @@ defineProps({
                                 <!-- {/* Hamburger untuk mobile */} -->
                                 <button @click="showingNavigationDropdown = !showingNavigationDropdown" class="sm:hidden ...">
                                     <!-- {/* ... ikon hamburger ... */} -->
-                                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                                     <svg class="h-6 w-6 text-gray-400 dark:text-gray-100 group-hover:text-gray-800 dark:group-hover:text-gray-100" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                                         <path :class="{ hidden: showingNavigationDropdown, 'inline-flex': !showingNavigationDropdown }" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                                         <path :class="{ hidden: !showingNavigationDropdown, 'inline-flex': showingNavigationDropdown }" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                     </svg>
@@ -124,7 +124,7 @@ defineProps({
                 </nav>
 
                 <!-- {/* Responsive Navigation Menu (Sidebar Mobile) - INI AKAN MENJADI SIDEBAR MOBILE YANG MUNCUL */} -->
-                <div v-show="showingNavigationDropdown" class="sm:hidden fixed inset-0 z-30">
+                <div v-show="showingNavigationDropdown" class="sm:hidden fixed inset-0 z-30" @click="showingNavigationDropdown = false">
                     <div class="fixed inset-0 bg-black opacity-25" @click="showingNavigationDropdown = false"></div>
                     <aside class="fixed top-0 left-0 h-full w-64 bg-white dark:bg-gray-800 shadow-xl z-40 transform transition-transform ease-in-out duration-300"
                            :class="showingNavigationDropdown ? 'translate-x-0' : '-translate-x-full'">
@@ -140,8 +140,8 @@ defineProps({
                         </div>
                         <nav class="p-4 space-y-1">
                             <ResponsiveNavLink :href="route('admin.dashboard')" :active="route().current('admin.dashboard')" @click="showingNavigationDropdown = false">Dashboard</ResponsiveNavLink>
-                            <ResponsiveNavLink :href="route('admin.rvms.index')" :active="route().current('admin.rvms.index*')" v-if="$page.props.auth.user.role === 'Admin'" @click="showingNavigationDropdown = false">Manajemen RVM</ResponsiveNavLink>
-                            <ResponsiveNavLink :href="route('admin.users.index')" :active="route().current('admin.users.index*')" @click="showingNavigationDropdown = false">Manajemen User</ResponsiveNavLink>
+                            <ResponsiveNavLink :href="route('admin.rvms.index')" @click="showingNavigationDropdown = false">Manajemen RVM</ResponsiveNavLink>
+                            <ResponsiveNavLink :href="route('admin.users.index')" @click="showingNavigationDropdown = false">Manajemen User</ResponsiveNavLink>
                         </nav>
                         <!-- {/* mt-auto untuk mendorong ke bawah */} -->
                         <div class="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto"> 
