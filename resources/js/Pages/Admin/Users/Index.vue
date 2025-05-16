@@ -155,7 +155,7 @@ const openDeleteUserModal = (user) => { console.log('TODO: Hapus user:', user.na
         <!-- Kontainer flex column untuk mengatur bagian sticky dan scrollable -->
         <div class="flex flex-col h-[calc(100vh-5rem-1rem)]"> <!-- Sesuaikan 10rem (tinggi header+padding) & 4rem (padding bawah) -->
             <!-- Bagian Atas yang Sticky -->
-            <div class="flex-shrink-0 bg-gray-100 dark:bg-gray-900 pb-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex-shrink-0 bg-gray-100 dark:bg-gray-800 pb-4 border-b border-gray-200 dark:border-gray-700">
                 <div class="flex flex-col sm:flex-row justify-between items-center gap-2 pt-0"> <!-- Hapus pt-4 dari sini jika padding sudah di main AdminLayout -->
                     <h1 class="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                         Pengguna Terdaftar
