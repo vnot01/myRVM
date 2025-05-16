@@ -8,6 +8,11 @@ import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import debounce from 'lodash/debounce';
 import TextInput from '@/Components/TextInput.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import DangerButton from '@/Components/DangerButton.vue'; // Untuk tombol hapus di modal
+import SecondaryButton from '@/Components/SecondaryButton.vue'; // Untuk tombol batal di modal
+import Modal from '@/Components/Modal.vue'; // Komponen Modal Breeze
+import InputLabel from '@/Components/InputLabel.vue';
+import InputError from '@/Components/InputError.vue';
 import { IconSearch, IconUserPlus, IconShieldCheck, IconShieldOff, IconMailOff /* ganti ikon */ } from '@tabler/icons-vue';
 
 const props = defineProps({
@@ -25,6 +30,10 @@ const isLoadingMore = ref(false);
 const initialLoadComplete = ref(false);
 const searchTerm = ref(props.filters.search || '');
 const scrollContainerRef = ref(null); // Ini akan merujuk ke div yang berisi kartu
+const confirmingUserDeletion = ref(false); // Mengontrol visibilitas modal
+const userToDelete = ref(null);          // Menyimpan objek user yang akan dihapus/dinonaktifkan
+const deleteConfirmationName = ref('');  // Untuk input teks konfirmasi nama user
+const deleteForm = useForm({});
 
 const updateLocalUserState = (paginator) => { console.log('[updateLocalUserState] Received paginator:', JSON.parse(JSON.stringify(paginator)));
     // Akses langsung properti paginasi dari level atas objek paginator
@@ -127,8 +136,6 @@ const formatDate = (dateString) => {
   console.log('[watch props.users] props.users changed. New current_page:', newPaginator?.current_page);
   updateLocalUserState(newPaginator); // Panggil update setiap kali props.users berubah
  };
-
-
 const formatDateNow = (dateString) => { /* ... (fungsi Anda) ... */
     if (!dateString) return 'N/A';
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
@@ -138,8 +145,55 @@ const openEditUserModal = (user) => {
     console.log('Mengarahkan ke halaman edit untuk user:', user.name, 'ID:', user.id);
     router.get(route('admin.users.edit', user.id)); // Gunakan user.id
 };
+const openDeleteUserModal = (user) => { 
+    console.log('TODO: Hapus user:', user.name); 
+    router.get(route('admin.users.destroy', user.id));
+};
+const openDeleteConfirmationModal = (user) => {
+    userToDelete.value = user;
+    deleteConfirmationName.value = ''; // Reset input konfirmasi
+    confirmingUserDeletion.value = true;
+    console.log('Buka modal hapus untuk user:', user.name);
+};
+
+const closeDeleteModal = () => {
+    confirmingUserDeletion.value = false;
+    userToDelete.value = null;
+    deleteConfirmationName.value = '';
+};
+
+const confirmAndDeleteUser = () => {
+    if (userToDelete.value && deleteConfirmationName.value === userToDelete.value.name) {
+        deleteForm.delete(route('admin.users.destroy', userToDelete.value.id), {
+            preserveScroll: true, // Agar tidak scroll ke atas setelah redirect
+            onSuccess: () => {
+                closeDeleteModal();
+                // Pesan flash akan ditangani oleh AdminLayout
+                // Daftar akan otomatis refresh karena redirect dari backend
+                console.log(`User ${userToDelete.value.name} proses hapus/nonaktif dikirim.`);
+            },
+            onError: (errors) => {
+                console.error('Gagal menghapus pengguna:', errors);
+                // Mungkin tampilkan error spesifik di modal jika perlu
+                // Untuk sekarang, biarkan notifikasi flash (jika ada dari backend) atau console error
+                // Jika error validasi (meskipun jarang untuk delete), form.errors akan terisi
+            },
+            onFinish: () => {
+                // Apapun hasilnya, pastikan modal tertutup jika belum
+                // if (confirmingUserDeletion.value) {
+                //     closeDeleteModal();
+                // }
+            }
+        });
+    } else {
+        // Tampilkan pesan error atau getarkan input jika nama tidak cocok
+        // Ini bisa ditambahkan dengan state error di modal.
+        alert('Nama pengguna yang dimasukkan untuk konfirmasi tidak cocok!');
+    }
+};
+
 // const openEditUserModal = (user) => { console.log('TODO: Edit user:', user.name); };
-const openDeleteUserModal = (user) => { console.log('TODO: Hapus user:', user.name); };
+// const openDeleteUserModal = (user) => { console.log('TODO: Hapus user:', user.name); };
 
 </script>
 
@@ -232,7 +286,7 @@ const openDeleteUserModal = (user) => { console.log('TODO: Hapus user:', user.na
                         </div>
                       </div>
                       <div class="mt-4 flex justify-end space-x-2">
-                          <button @click.stop="openDeleteUserModal(user)" class="px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 dark:bg-red-700 dark:text-red-100 dark:hover:bg-red-600">
+                          <button @click.stop="openDeleteConfirmationModal(user)" class="px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 dark:bg-red-700 dark:text-red-100 dark:hover:bg-red-600">
                               Hapus
                           </button>
                           <button @click.stop="openEditUserModal(user)" class="px-3 py-1 text-xs font-medium text-sky-700 bg-sky-100 rounded-md hover:bg-sky-200 dark:bg-sky-700 dark:text-sky-100 dark:hover:bg-sky-600">

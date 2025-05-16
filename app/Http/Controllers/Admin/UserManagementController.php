@@ -444,8 +444,69 @@ class UserManagementController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(User $user)
+    public function destroy(User $user) // Route model binding
     {
-        //
+        // Otorisasi: Hanya Admin yang boleh menghapus
+        // Nanti akan diganti dengan Policy: $this->authorize('delete', $user);
+        if (Auth::user()->role !== 'Admin') {
+            Log::warning('UserManagement: Unauthorized attempt to delete user.', ['attempted_by_user_id' => Auth::id(), 'target_user_id' => $user->id]);
+            // Mengembalikan ke index dengan pesan error karena ini adalah request Inertia via router.delete
+            return redirect()->route('admin.users.index')->with('error', 'Anda tidak diizinkan untuk menghapus pengguna.');
+        }
+
+        // Mencegah Admin menghapus akunnya sendiri
+        if (Auth::id() === $user->id) {
+            Log::warning('UserManagement: Admin attempted to delete self.', ['admin_user_id' => Auth::id()]);
+            return redirect()->route('admin.users.index')->with('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
+        }
+
+        // Mencegah Admin menghapus Admin lain (kecuali jika Anda adalah Super Admin, misal ID 1)
+        // Ini bisa jadi lebih kompleks jika ada banyak Admin. Untuk sekarang, kita izinkan Admin menghapus Admin lain (selain dirinya).
+        if ($user->role === 'Admin' && Auth::id() !== 1) { // Contoh jika hanya user ID 1 yang bisa hapus Admin lain
+            Log::warning('UserManagement: Admin attempted to delete another Admin without super privileges.', ['admin_user_id' => Auth::id(), 'target_admin_id' => $user->id]);
+            return redirect()->route('admin.users.index')->with('error', 'Anda tidak dapat menghapus akun Admin lain.');
+        }
+
+
+        // Mulai transaksi jika Anda melakukan beberapa operasi database (misalnya, mencatat ke log aktivitas)
+        DB::beginTransaction();
+        try {
+            $userName = $user->name; // Simpan nama untuk pesan flash
+            $actionMessage = '';
+
+            // Logika Hapus Bersyarat
+            // Cek apakah user memiliki deposit atau poin. Anggap ada relasi 'deposits' di model User.
+            $hasActivity = $user->deposits()->exists() || $user->points > 0;
+
+            if ($hasActivity) {
+                // Nonaktifkan pengguna
+                $user->is_active = false;
+                $user->save();
+                $actionMessage = 'dinonaktifkan';
+                Log::info('User deactivated due to existing activity.', ['user_id' => $user->id, 'admin_id' => Auth::id()]);
+                // TODO: Catat ke UserActivityLog jika ada
+                // UserActivityLog::create([...]);
+            } else {
+                // Hapus pengguna secara permanen
+                $user->delete();
+                $actionMessage = 'dihapus secara permanen';
+                Log::info('User permanently deleted.', ['user_id' => $user->id, 'admin_id' => Auth::id()]);
+            }
+
+            DB::commit();
+
+            return redirect()->route('admin.users.index')
+                             ->with('success', "Pengguna \"{$userName}\" berhasil {$actionMessage}.");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error during user deletion/deactivation: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'admin_id' => Auth::id(),
+                'trace' => Str::limit($e->getTraceAsString(), 1000)
+            ]);
+            return redirect()->route('admin.users.index')
+                             ->with('error', 'Gagal memproses permintaan. Terjadi kesalahan server.');
+        }
     }
 }
