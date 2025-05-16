@@ -14,10 +14,14 @@ use Illuminate\Support\Facades\Auth; // <-- Tambahkan Auth facade
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests; // <-- Tambahkan AuthorizesRequests trait
 use Illuminate\Support\Facades\Storage; // <-- Tambahkan Storage facade
 use Illuminate\Support\Str; // Untuk Str::random()
+use App\Models\PointAdjustment;
+use Illuminate\Support\Facades\DB; 
+use Barryvdh\Debugbar\Facade as Debugbar;
+
 
 class UserManagementController extends Controller
 {
-    
+
     /**
      * Display a listing of the resource.
      */
@@ -29,9 +33,9 @@ class UserManagementController extends Controller
 
         $users = User::query()
             ->when($searchTerm, function ($query, $search) {
-                $query->where(function($q) use ($search) {
+                $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%");
+                        ->orWhere('email', 'like', "%{$search}%");
                 });
             })
             ->when($roleFilter, function ($query, $role) {
@@ -59,8 +63,8 @@ class UserManagementController extends Controller
             ['value' => 'verified', 'label' => 'Terverifikasi'],
             ['value' => 'unverified', 'label' => 'Belum Terverifikasi'],
         ];
-        info('Available Roles: :',$availableRoles);
-        info('Statuses: :',$availableStatuses);
+        info('Available Roles: :', $availableRoles);
+        info('Statuses: :', $availableStatuses);
         return Inertia::render('Admin/Users/Index', [
             'users' => $users,
             'filters' => $request->only(['search', 'role', 'status']), // Kirim filter aktif ke Vue
@@ -117,7 +121,7 @@ class UserManagementController extends Controller
         if (!Auth::user() || Auth::user()->role !== 'Admin') {
             abort(403, 'Hanya Admin yang dapat menyimpan pengguna baru.');
         }
-            
+
         $validatedData = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
@@ -125,15 +129,23 @@ class UserManagementController extends Controller
             'role' => 'required|string|in:Operator,User', // Sesuaikan dengan role yang valid
             'phone_number' => 'nullable|string|max:20',
             'citizenship' => 'required|string|in:WNI,WNA',
-            'identity_type' => ['required_with:identity_number', 'string', function ($attribute, $value, $fail) use ($request) {
-                if ($request->input('citizenship') === 'WNI' && !in_array($value, ['KTP', 'Pasport'])) {
-                    $fail('Tipe identitas tidak valid untuk WNI.');
+            'identity_type' => [
+                'required_with:identity_number',
+                'string',
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($request->input('citizenship') === 'WNI' && !in_array($value, ['KTP', 'Pasport'])) {
+                        $fail('Tipe identitas tidak valid untuk WNI.');
+                    }
+                    if ($request->input('citizenship') === 'WNA' && $value !== 'Pasport') {
+                        $fail('Tipe identitas tidak valid untuk WNA.');
+                    }
                 }
-                if ($request->input('citizenship') === 'WNA' && $value !== 'Pasport') {
-                    $fail('Tipe identitas tidak valid untuk WNA.');
-                }
-            }],
-            'identity_number' => ['nullable', 'string', 'max:50', 'unique:users,identity_number,' . ($this->user?->id ?? 'NULL') . ',id', // Abaikan user saat ini jika update
+            ],
+            'identity_number' => [
+                'nullable',
+                'string',
+                'max:50',
+                'unique:users,identity_number,' . ($this->user?->id ?? 'NULL') . ',id', // Abaikan user saat ini jika update
                 function ($attribute, $value, $fail) use ($request) {
                     $identityType = $request->input('identity_type');
                     if ($identityType === 'KTP') {
@@ -165,12 +177,12 @@ class UserManagementController extends Controller
             Log::info('User created by admin.', ['user_id' => $user->id, 'admin_id' => auth()->id()]);
 
             return redirect()->route('admin.users.index')
-                             ->with('success', 'Pengguna "' . $user->name . '" berhasil ditambahkan.');
+                ->with('success', 'Pengguna "' . $user->name . '" berhasil ditambahkan.');
 
         } catch (\Exception $e) {
             Log::error('Error creating user by admin: ' . $e->getMessage());
             return redirect()->back()
-                             ->with('error', 'Gagal menambahkan pengguna. Terjadi kesalahan server.');
+                ->with('error', 'Gagal menambahkan pengguna. Terjadi kesalahan server.');
         }
     }
 
@@ -182,7 +194,7 @@ class UserManagementController extends Controller
         //
     }
 
-   /**
+    /**
      * Show the form for editing the specified resource.
      */
     public function edit(User $user) // Route model binding
@@ -191,23 +203,39 @@ class UserManagementController extends Controller
         // $this->authorize('update', $user); // Asumsi UserPolicy akan dibuat/digunakan
 
         // Jika tidak pakai Policy, cek manual:
-        if (!Auth::user() || Auth::user()->role !== 'Admin') {
+        // if (!Auth::user() || Auth::user()->role !== 'Admin') {
+        //     abort(403, 'Hanya Admin yang dapat mengedit pengguna.');
+        // }
+        if (Auth::user()->role !== 'Admin') {
             abort(403, 'Hanya Admin yang dapat mengedit pengguna.');
         }
-
-        $availableRoles = ['Admin', 'Operator', 'User']; // Sesuaikan dengan role Anda
-        $availableRolesProp = ['Operator', 'User'];
-        if (Auth::user()->id === $user->id && $user->role === 'Admin') {
-            // Jika Admin mengedit dirinya sendiri, dia tidak bisa menurunkan role-nya
-            // Atau Anda bisa memutuskan untuk tidak menampilkan field role sama sekali
+        $userData = $user->only(
+            'id',
+            'name',
+            'email',
+            'phone_number',
+            'citizenship',
+            'identity_type',
+            'identity_number',
+            'points',
+            'role',
+            'is_active',
+            'email_verified_at', // Untuk info apakah sudah diverifikasi
+            'avatar' // Untuk menampilkan avatar saat ini
+        );
+        $editableRoles = ['Admin', 'Operator', 'User'];
+        if (Auth::id() === $user->id && $user->role === 'Admin') {
+            $editableRoles = ['Admin'];
         }
 
+        $dataToPass = [
+            'user' => $userData,
+            'availableRoles' => $editableRoles,
+        ];
 
-        return Inertia::render('Admin/Users/Edit', [
-            'user' => $user->only('id', 'name', 'email', 'role', 'phone_number', 'citizenship', 'identity_type', 'identity_number', 'email_verified_at', 'avatar', 'is_active'), // Kirim data user yang relevan
-            'availableRolesProp' => $availableRolesProp,
-            `availableRoles` => $availableRoles,
-        ]);
+        info('data To Pass: :', $dataToPass);
+
+        return Inertia::render('Admin/Users/Edit', $dataToPass);
     }
 
     /**
@@ -215,86 +243,201 @@ class UserManagementController extends Controller
      */
     public function update(Request $request, User $user) // Route model binding
     {
-        // $this->authorize('update', $user);
-        if (!Auth::user() || Auth::user()->role !== 'Admin') {
+
+        if (Auth::user()->role !== 'Admin') {
             abort(403, 'Hanya Admin yang dapat memperbarui pengguna.');
         }
 
-        $validatedData = $request->validate([
+        info('[UserUpdate] Request data received:', $request->all());
+        if ($request->hasFile('avatar')) {
+            info('[UserUpdate] Avatar file IS PRESENT in request.');
+        }
+
+        // 1. Definisikan Aturan Validasi Dasar
+        $rules = [
             'name' => 'required|string|max:255',
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
-            'role' => 'required|string|in:Operator,User', // Admin tidak bisa diubah dari sini
-            'phone_number' => 'nullable|string|max:20',
-            'citizenship' => 'nullable|string|in:WNI,WNA', // Pastikan validasi ada
-            'identity_type' => ['nullable','string', function ($attribute, $value, $fail) use ($request) {
-                if ($request->input('citizenship') === 'WNI' && !in_array($value, ['KTP', 'Pasport'])) {
-                    $fail('Tipe identitas tidak valid untuk WNI.');
-                }
-                if ($request->input('citizenship') === 'WNA' && $value !== 'Pasport' && !empty($value)) { // Cek jika WNA dan tipe bukan pasport (dan tidak kosong)
-                    $fail('Tipe identitas tidak valid untuk WNA.');
-                }
-            }],
-            'identity_number' => ['nullable', 'string', 'max:50', Rule::unique('users')->ignore($user->id),
+            // Sesuaikan $editableRoles jika perlu dari method edit atau definisikan di sini
+            'role' => ['required', 'string', Rule::in(Auth::id() === $user->id && $user->role === 'Admin' ? ['Admin'] : ['Admin', 'Operator', 'User'])],
+            'phone_number' => ['nullable', 'string', 'max:20', Rule::unique('users', 'phone_number')->ignore($user->id)],
+            'citizenship' => ['nullable', 'string', Rule::in(['WNI', 'WNA'])],
+            'identity_type' => ['nullable', 'string', Rule::in(['KTP', 'Pasport'])], // Validasi lebih detail di bawah
+            'identity_number' => ['nullable', 'string', 'max:50', Rule::unique('users', 'identity_number')->ignore($user->id)], // Validasi lebih detail di bawah
+            'points' => 'required|integer|min:0', // Tambahkan ini
+            'is_active' => 'required|boolean', // Dari form Vue, ini akan 'true' atau 'false' (boolean)
+            'email_verified_manually' => 'sometimes|boolean',
+            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+        ];
+        // 2. Tambahkan Aturan Validasi Kondisional
+        if ($request->filled('password')) {
+            $rules['password'] = ['required', 'confirmed', Rules\Password::defaults()];
+        }
+
+        // Validasi lebih detail untuk identity_type berdasarkan citizenship
+        if ($request->filled('citizenship')) {
+            $rules['identity_type'] = [
+                'required_with:identity_number',
+                'nullable',
+                'string',
                 function ($attribute, $value, $fail) use ($request) {
-                    if (empty($value)) return; // Lewati jika kosong
-                    $identityType = $request->input('identity_type');
-                    if ($identityType === 'KTP') {
-                        if (!preg_match('/^\d{16}$/', $value)) {
-                            $fail('Nomor KTP harus terdiri dari 16 digit angka.');
+                    if (empty($value) && $request->filled('identity_number')) { // Jika ada no ID, tipe ID wajib
+                        $fail('Tipe identitas wajib diisi jika nomor identitas diisi.');
+                        return;
+                    }
+                    if (!empty($value)) { // Hanya validasi jika tipe identitas diisi
+                        if ($request->input('citizenship') === 'WNI' && !in_array($value, ['KTP', 'Pasport'])) {
+                            $fail('Tipe identitas tidak valid untuk WNI.');
                         }
-                    } elseif ($identityType === 'Pasport') {
-                        if (!preg_match('/^[A-Z0-9]{1,10}$/', $value)) {
-                            $fail('Nomor Pasport tidak valid (1-10 alphanumeric uppercase).');
+                        if ($request->input('citizenship') === 'WNA' && $value !== 'Pasport') {
+                            $fail('Tipe identitas hanya boleh Paspor untuk WNA.');
                         }
                     }
                 }
-            ],
-            'is_active' => 'sometimes|boolean', // Untuk status aktif/nonaktif
-            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048', // Validasi untuk avatar
-        ]);
+            ];
+        }
 
-        try {
-            $updateData = $validatedData;
-
-            if ($request->hasFile('avatar')) {
-                // Hapus avatar lama jika ada dan bukan default
-                if ($user->avatar && Storage::disk('public')->exists(str_replace('/storage/', '', $user->avatar))) {
-                     Storage::disk('public')->delete(str_replace('/storage/', '', $user->avatar));
+        // Validasi lebih detail untuk identity_number berdasarkan identity_type
+        if ($request->filled('identity_type') && $request->filled('identity_number')) {
+            $rules['identity_number'] = [
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('users', 'identity_number')->ignore($user->id),
+                function ($attribute, $value, $fail) use ($request) {
+                    $identityType = $request->input('identity_type');
+                    if ($identityType === 'KTP' && !preg_match('/^\d{16}$/', $value)) {
+                        $fail('Nomor KTP harus 16 digit angka.');
+                    } elseif ($identityType === 'Pasport' && !preg_match('/^[A-Z0-9]{1,12}$/', $value)) { // Anda pakai 1-10 sebelumnya, saya ubah ke 1-12
+                        $fail('Nomor Paspor maks 12 karakter (huruf besar & angka).');
+                    }
                 }
-                // Simpan avatar baru
+            ];
+        }
+
+        // 3. Lakukan Validasi
+        $validatedData = $request->validate($rules);
+        info('[UserUpdate] Validation passed. Validated data:', $validatedData);
+
+        DB::beginTransaction(); // Mulai transaksi
+        try {
+           // Langsung update properti model $user
+            $user->name = $validatedData['name'];
+            $user->email = $validatedData['email'];
+            $user->phone_number = $validatedData['phone_number'];
+            $user->role = $validatedData['role'];
+            $user->citizenship = $validatedData['citizenship'];
+            $user->identity_type = $validatedData['identity_type'];
+            $user->identity_number = ($validatedData['identity_type'] && isset($validatedData['identity_number'])) ? $validatedData['identity_number'] : null;
+
+            // --- PERBAIKAN LOGIKA BOOLEAN ---
+            // is_active akan selalu ada di $validatedData karena 'required'
+            $user->is_active = filter_var($validatedData['is_active'], FILTER_VALIDATE_BOOLEAN);
+            Log::info('[UserUpdate] Setting is_active to:', ['is_active' => $user->is_active]);
+
+
+            // Penanganan email_verified_at
+            $emailChanged = $user->isDirty('email'); // Cek apakah email field diubah SEBELUM assignment baru
+
+            if ($emailChanged) {
+                $user->email_verified_at = null; // Reset verifikasi jika email diubah
+                Log::info('[UserUpdate] Email changed, email_verified_at reset to null.');
+                // TODO: Kirim email verifikasi baru
+            } elseif (array_key_exists('email_verified_manually', $validatedData)) {
+                // Jika 'email_verified_manually' dikirim (artinya checkbox ada dan nilainya bisa true/false)
+                if (filter_var($validatedData['email_verified_manually'], FILTER_VALIDATE_BOOLEAN) === true) {
+                    $user->email_verified_at = now();
+                    Log::info('[UserUpdate] Email manually verified, email_verified_at set to now.');
+                } else {
+                    // Jika checkbox tidak dicentang (false)
+                    $user->email_verified_at = null;
+                    Log::info('[UserUpdate] Email manual verification checkbox unchecked, email_verified_at set to null.');
+                }
+            }
+            // Jika 'email_verified_manually' tidak ada di $validatedData (misalnya, checkbox tidak ada di form karena kondisi tertentu),
+            // maka 'email_verified_at' tidak akan diubah oleh blok ini, kecuali jika emailnya sendiri yang berubah.
+
+            // --- AKHIR PERBAIKAN LOGIKA BOOLEAN ---
+
+            // Handle Avatar
+            if ($request->hasFile('avatar')) {
+                if ($user->avatar && Storage::disk('public')->exists(str_replace(Storage::url(''), '', $user->avatar))) {
+                    Storage::disk('public')->delete(str_replace(Storage::url(''), '', $user->avatar));
+                }
                 $path = $request->file('avatar')->store('avatars', 'public');
-                $updateData['avatar'] = Storage::url($path); // Simpan URL publik
+                $updatePayload['avatar'] = Storage::url($path);
+                info('[UserUpdate] New avatar processed.', ['url' => $updatePayload['avatar']]);
             }
 
+            // Handle Password
+            if (!empty($validatedData['password'])) {
+                $updatePayload['password'] = Hash::make($validatedData['password']);
+                info('[UserUpdate] Password will be updated.');
+                // TODO: Notifikasi email perubahan password
+            }
 
-            // Hanya update password jika diisi
-            if ($request->filled('password')) {
-                $request->validate([
-                    'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            // Handle Verifikasi Email Manual & Perubahan Email
+            $emailChanged = $user->email !== $validatedData['email'];
+            if ($emailChanged) {
+                $updatePayload['email_verified_at'] = null; // Reset verifikasi jika email berubah
+                info('[UserUpdate] Email changed, verification reset.');
+                // TODO: Kirim email verifikasi baru
+            } elseif (isset($validatedData['email_verified_manually'])) { // Cek apakah field ini dikirim
+                if ($validatedData['email_verified_manually'] && !$user->email_verified_at) {
+                    $updatePayload['email_verified_at'] = now();
+                    info('[UserUpdate] Email manually verified.');
+                } elseif (!$validatedData['email_verified_manually'] && $user->email_verified_at) {
+                    $updatePayload['email_verified_at'] = null; // Admin un-verify
+                    info('[UserUpdate] Email manually un-verified.');
+                }
+            }
+
+            // Handle Poin
+            $previousPoints = $user->points;
+            $newPoints = (int) $validatedData['points'];
+            if ($previousPoints !== $newPoints) {
+                $updatePayload['points'] = $newPoints;
+                PointAdjustment::create([
+                    'user_id' => $user->id,
+                    'adjusted_by_user_id' => Auth::id(),
+                    'previous_points' => $previousPoints,
+                    'points_changed' => $newPoints - $previousPoints,
+                    'new_points' => $newPoints,
+                    'reason' => $request->input('points_change_reason', 'Perubahan poin manual oleh ' . Auth::user()->name),
                 ]);
-                $updateData['password'] = Hash::make($request->password);
+                info('[UserUpdate] Points adjusted.', ['old' => $previousPoints, 'new' => $newPoints]);
             } else {
-                // Jangan sertakan password dalam update jika tidak diubah
-                unset($updateData['password']);
-            }
-
-            // Jika admin mencoba mengubah role dirinya sendiri (jika diizinkan)
-            if (Auth::user()->id === $user->id && Auth::user()->role === 'Admin' && $request->input('role') !== 'Admin') {
-                // Logika untuk mencegah admin menurunkan role dirinya sendiri, atau memerlukan konfirmasi khusus
-                // Untuk sekarang, kita asumsikan ini tidak diizinkan melalui form ini jika role tidak ada di availableRoles
+                // Jika poin tidak berubah, tidak perlu masukkannya ke $updatePayload agar tidak trigger event update jika tidak perlu
+                // Namun, karena kita sudah ambil dari $validatedData, tidak masalah.
             }
 
 
-            $user->update($updateData);
-            Log::info('User updated by admin.', ['user_id' => $user->id, 'admin_id' => auth()->id()]);
+            // 5. Lakukan Update
+            // Cek apakah ada perubahan sebelum save untuk efisiensi (opsional)
+            if ($user->isDirty()) { // Cek apakah ada field yang berubah
+                $user->save();
+                info('User model saved to DB.', ['user_id' => $user->id, 'changed_fields' => $user->getChanges()]);
+            } else {
+                info('No changes detected for user model, save skipped.', ['user_id' => $user->id]);
+            }
+            info('User updated successfully in DB.', ['user_id' => $user->id, 'admin_id' => Auth::id()]);
+
+            DB::commit(); // Commit transaksi
 
             return redirect()->route('admin.users.index')
-                             ->with('success', 'Data pengguna "' . $user->name . '" berhasil diperbarui.');
+                ->with('success', 'Data pengguna "' . $user->name . '" berhasil diperbarui.');
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack(); // Rollback jika validasi gagal (seharusnya sudah ditangani $request->validate())
+            Log::warning('[UserUpdate] ValidationException after initial pass (should not happen often):', ['errors' => $e->errors()]);
+            return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
-            Log::error('Error updating user by admin: ' . $e->getMessage(), ['user_id' => $user->id]);
+            DB::rollBack(); // Rollback transaksi jika ada error lain
+            Log::error('[UserUpdate] Exception during user update: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'trace' => Str::limit($e->getTraceAsString(), 1000)
+            ]);
             return redirect()->back()
-                             ->with('error', 'Gagal memperbarui data pengguna. Terjadi kesalahan server.');
+                ->with('error', 'Gagal memperbarui data pengguna. Terjadi kesalahan server.');
         }
     }
 

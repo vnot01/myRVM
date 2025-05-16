@@ -1,7 +1,7 @@
 // resources/js/Layouts/AdminLayout.vue
 <script setup>
 // ... (import Anda) ...
-import { Head, usePage } from '@inertiajs/vue3'; // Hanya usePage jika Link, dll. tidak dipakai langsung di sini
+import { Link, Head, usePage } from '@inertiajs/vue3'; // Hanya usePage jika Link, dll. tidak dipakai langsung di sini
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
@@ -91,9 +91,9 @@ watch(() => page.props.flash, (newFlashValue) => {
             <!-- Sidebar Desktop -->
             <aside class="w-64 bg-white dark:bg-slate-800 shadow-lg flex-col transition-transform duration-300 hidden sm:flex">
                  <div class="flex items-center justify-center h-16 border-b border-gray-200 dark:border-gray-700">
-                    <InertiaLink :href="route('admin.dashboard')">
-                        <ApplicationLogo class="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />
-                    </InertiaLink>
+                    <Link :href="route('admin.dashboard')">
+                        <ApplicationLogo class="block h-9 w-auto fill-current text-slate-800 dark:text-slate-200" />
+                    </Link>
                 </div>
                 <nav class="flex-grow p-4 space-y-1">
                     <NavLink :href="route('admin.dashboard')" :active="page.url.startsWith('/admin/dashboard')">
@@ -167,9 +167,9 @@ watch(() => page.props.flash, (newFlashValue) => {
                        <!-- {/* ... Konten Sidebar Mobile (Logo, NavLink, Info User, Logout) ... */}
                        {/* Sama seperti yang ada di kode AdminLayout.vue sebelumnya */} -->
                         <div class="flex items-center justify-between h-16 border-b border-gray-200 dark:border-gray-700 px-4">
-                            <InertiaLink :href="route('admin.dashboard')" @click="showingNavigationDropdown = false">
+                            <Link :href="route('admin.dashboard')" @click="showingNavigationDropdown = false">
                                 <ApplicationLogo class="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />
-                            </InertiaLink>
+                            </Link>
                             <button @click="showingNavigationDropdown = false" class="p-2 rounded-md text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
                                 <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>

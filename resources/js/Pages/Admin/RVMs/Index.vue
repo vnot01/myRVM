@@ -1,6 +1,6 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { Link as InertiaLink, Head, useForm, router } from '@inertiajs/vue3'; // Tambahkan router
+import { Link, Head, useForm, router } from '@inertiajs/vue3'; // Tambahkan router
 import Pagination from '@/Components/Pagination.vue';
 import { ref, watch } from 'vue'; // Tambahkan ref dan watch
 import debounce from 'lodash/debounce'; // Untuk debounce search input
@@ -97,19 +97,19 @@ const closeModal = () => {
       <h1 class="text-2xl font-semibold text-gray-900 dark:text-gray-100">Mesin RVM Terdaftar</h1>
       <div class="flex items-center gap-2">
         <!-- Placeholder Tombol Sorting -->
-        <button type="button" class="px-3 py-2 text-xs font-medium text-center inline-flex items-center text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 focus:ring-4 focus:outline-none focus:ring-gray-200 dark:focus:ring-gray-700">
-          <svg class="w-3 h-3 text-gray-500 dark:text-gray-400 mr-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M10 3a.997.997 0 0 1 .812.402l3.938 5.004a1 1 0 0 1-.026 1.398l-4.013 4.397a1 1 0 0 1-1.412-.026L5.22 9.82A1 1 0 0 1 5.2 8.422l3.982-5.004A.997.997 0 0 1 10 3Zm0 14.06L5.22 11.98a.997.997 0 0 1 0-1.184l3.982-5.004A1 1 0 0 1 10 5a1 1 0 0 1 .798.812l3.938 5.004a1 1 0 0 1-.026 1.398l-4.013 4.397A.997.997 0 0 1 10 17.06Z"/>
-          </svg>
-          Sort by <span class="sr-only">opsi urutan</span>
-        </button>
-        <InertiaLink :href="route('admin.rvms.create')" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium inline-flex items-center">
+        <!-- <button type="button" class="px-3 py-2 text-xs font-medium text-center inline-flex items-center text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 focus:ring-4 focus:outline-none focus:ring-gray-200 dark:focus:ring-gray-700"> -->
+          <!-- <svg class="w-3 h-3 text-gray-500 dark:text-gray-400 mr-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20"> -->
+            <!-- <path d="M10 3a.997.997 0 0 1 .812.402l3.938 5.004a1 1 0 0 1-.026 1.398l-4.013 4.397a1 1 0 0 1-1.412-.026L5.22 9.82A1 1 0 0 1 5.2 8.422l3.982-5.004A.997.997 0 0 1 10 3Zm0 14.06L5.22 11.98a.997.997 0 0 1 0-1.184l3.982-5.004A1 1 0 0 1 10 5a1 1 0 0 1 .798.812l3.938 5.004a1 1 0 0 1-.026 1.398l-4.013 4.397A.997.997 0 0 1 10 17.06Z"/> -->
+          <!-- </svg> -->
+          <!-- Sort by <span class="sr-only">opsi urutan</span> -->
+        <!-- </button> -->
+        <Link :href="route('admin.rvms.create')" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium inline-flex items-center">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-1 sm:mr-2">
             <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
           </svg>
           <span class="hidden sm:inline">Tambah RVM</span>
           <span class="sm:hidden">Baru</span>
-        </InertiaLink>
+        </Link>
       </div>
     </div>
 
@@ -144,14 +144,14 @@ const closeModal = () => {
           <div class="flex items-center space-x-3 min-w-0"> <!-- Tambahkan min-w-0 agar truncate bekerja */} -->
             <span :class="getStatusColorClass(rvm.status)" class="w-2.5 h-2.5 rounded-full flex-shrink-0" :title="getStatus(rvm.status)"></span>
             
-            <InertiaLink :href="route('admin.rvms.edit', rvm.id)" class="text-base font-semibold text-gray-900 dark:text-gray-100 hover:underline truncate">
+            <Link :href="route('admin.rvms.edit', rvm.id)" class="text-base font-semibold text-gray-900 dark:text-gray-100 hover:underline truncate">
               {{ rvm.name.length > 40 ? rvm.name.substring(0, 30) + '...' : rvm.name }}
-            </InertiaLink>
+            </Link>
           </div>
           <div class="flex items-center space-x-3 flex-shrink-0">
-            <InertiaLink :href="route('admin.rvms.edit', rvm.id)" class="px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600">
+            <Link :href="route('admin.rvms.edit', rvm.id)" class="px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600">
               Edit
-            </InertiaLink>
+            </Link>
 
             <button @click="confirmRvmDeletion(rvm)"
                     class="px-3 py-1 text-xs font-medium text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-700/50 rounded-md hover:bg-red-200 dark:hover:bg-red-600/50">
@@ -181,7 +181,7 @@ const closeModal = () => {
       </div>
     </div>
 
-    <Pagination v-if="rvms.links && rvms.links.length > 3 && rvms.data.length > 0" :links="rvms.links" class="mt-6" />
+    <Pagination v-if="rvms.links && rvms.links.length > 3 && rvms.data.length > 0" :links="rvms.links" class="mt-6 text-gray-900 dark:text-gray-100" />
 
         <!-- Modal Konfirmasi Delete -->
     <Modal :show="confirmingRvmDeletion" @close="closeModal">

@@ -134,10 +134,11 @@ const formatDateNow = (dateString) => { /* ... (fungsi Anda) ... */
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
     return new Date(dateString).toLocaleDateString('id-ID', options);
 };
-// const openEditUserModal = (user) => { console.log('TODO: Edit user:', user.name); router.get(route('admin.users.edit', user.id)); };
-// const openDeleteUserModal = (user) => { console.log('TODO: Hapus user:', user.name); };
-
-const openEditUserModal = (user) => { console.log('TODO: Edit user:', user.name); };
+const openEditUserModal = (user) => {
+    console.log('Mengarahkan ke halaman edit untuk user:', user.name, 'ID:', user.id);
+    router.get(route('admin.users.edit', user.id)); // Gunakan user.id
+};
+// const openEditUserModal = (user) => { console.log('TODO: Edit user:', user.name); };
 const openDeleteUserModal = (user) => { console.log('TODO: Hapus user:', user.name); };
 
 </script>
@@ -161,10 +162,10 @@ const openDeleteUserModal = (user) => { console.log('TODO: Hapus user:', user.na
                         Pengguna Terdaftar
                     </h1>
                     <div class="flex items-center gap-2">
-                        <button type="button" class="px-3 py-2 text-xs font-medium text-center inline-flex items-center text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-600 focus:ring-4 focus:outline-none focus:ring-gray-200 dark:focus:ring-slate-700">
-                            <svg class="w-3 h-3 text-gray-500 dark:text-gray-400 mr-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20"><path d="M10 3a.997.997 0 0 1 .812.402l3.938 5.004a1 1 0 0 1-.026 1.398l-4.013 4.397a1 1 0 0 1-1.412-.026L5.22 9.82A1 1 0 0 1 5.2 8.422l3.982-5.004A.997.997 0 0 1 10 3Zm0 14.06L5.22 11.98a.997.997 0 0 1 0-1.184l3.982-5.004A1 1 0 0 1 10 5a1 1 0 0 1 .798.812l3.938 5.004a1 1 0 0 1-.026 1.398l-4.013 4.397A.997.997 0 0 1 10 17.06Z"/></svg>
-                            Sort by
-                        </button>
+                        <!-- <button type="button" class="px-3 py-2 text-xs font-medium text-center inline-flex items-center text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-600 focus:ring-4 focus:outline-none focus:ring-gray-200 dark:focus:ring-slate-700"> -->
+                            <!-- <svg class="w-3 h-3 text-gray-500 dark:text-gray-400 mr-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20"><path d="M10 3a.997.997 0 0 1 .812.402l3.938 5.004a1 1 0 0 1-.026 1.398l-4.013 4.397a1 1 0 0 1-1.412-.026L5.22 9.82A1 1 0 0 1 5.2 8.422l3.982-5.004A.997.997 0 0 1 10 3Zm0 14.06L5.22 11.98a.997.997 0 0 1 0-1.184l3.982-5.004A1 1 0 0 1 10 5a1 1 0 0 1 .798.812l3.938 5.004a1 1 0 0 1-.026 1.398l-4.013 4.397A.997.997 0 0 1 10 17.06Z"/></svg> -->
+                            <!-- Sort by -->
+                        <!-- </button> -->
                         <Link :href="route('admin.users.create')" class="cursor-pointer select-none px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium inline-flex items-center">
                             <IconUserPlus class="w-5 h-5 mr-1 sm:mr-2" />
                             <span class="hidden sm:inline select-none">Tambah Pengguna</span>
