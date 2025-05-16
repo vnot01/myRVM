@@ -21,6 +21,7 @@ return new class extends Migration
             $table->integer('points')->unsigned()->default(0)->after('identity_number');
             $table->enum('role', ['Admin', 'Operator', 'User'])->default('User')->after('points');
             $table->boolean('is_guest')->default(false)->after('role');
+            $table->boolean('is_active')->default(true)->after('is_guest');
         });
     }
 
@@ -40,6 +41,7 @@ return new class extends Migration
                 'points',
                 'role',
                 'is_guest',
+                'is_active',
             ]);
         });
     }

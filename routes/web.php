@@ -40,7 +40,16 @@ Route::middleware(['auth', 'verified', 'role:Admin,Operator'])->prefix('admin')-
     Route::delete('/rvms/{rvm}', [RvmManagementController::class, 'destroy'])->name('rvms.destroy')->middleware('role:Admin');
 
     // Rute Manajemen User
+    // --- RUTE BARU UNTUK USER MANAGEMENT ---
     Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
+    // Rute untuk create, store, edit, update, destroy akan ditambahkan nanti
+    // Route::resource('/users', UserManagementController::class) ->only(['index', 'create', 'store'])->middleware(['role:Admin']);
+    Route::get('/users/create', [UserManagementController::class, 'create'])->name('users.create')->middleware('role:Admin');
+    Route::post('/users', [UserManagementController::class, 'store'])->name('users.store')->middleware('role:Admin');
+    Route::get('/users/{user}/edit', [UserManagementController::class, 'edit'])->name('users.edit')->middleware('role:Admin');
+    Route::put('/users/{user}', [UserManagementController::class, 'update'])->name('users.update')->middleware('role:Admin');
+    Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy')->middleware('role:Admin');
+    // --- AKHIR RUTE BARU ---
     // ... rute CRUD user lainnya ...
 });
 

@@ -4,7 +4,8 @@ namespace App\Providers;
 
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
-// use Tightenco\Ziggy\Ziggy; // Import class Ziggy dari Tightenco
+// use App\Models\User; // <-- Tambahkan ini
+// use App\Policies\UserPolicy; // <-- Tambahkan ini
 
 
 class AppServiceProvider extends ServiceProvider

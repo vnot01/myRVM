@@ -6,14 +6,18 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Faker\Factory as Faker;
 
 class UserSeeder extends Seeder
 {
+    
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
+        // $faker = Factory::create();
+        $faker = Faker::create('id-ID');
         // User Admin
         DB::table('users')->insert([
             'name' => 'Admin RVM',
@@ -29,6 +33,7 @@ class UserSeeder extends Seeder
             'points' => 0,
             'role' => 'Admin',
             'is_guest' => false,
+            'is_active' => true,
             'remember_token' => Str::random(10),
             'created_at' => now(),
             'updated_at' => now(),
@@ -49,6 +54,7 @@ class UserSeeder extends Seeder
             'points' => 0,
             'role' => 'Operator',
             'is_guest' => false,
+            'is_active' => true,
             'remember_token' => Str::random(10),
             'created_at' => now(),
             'updated_at' => now(),
@@ -62,6 +68,7 @@ class UserSeeder extends Seeder
                 'phone_number' => '081234567890',
                 'identity_number' => '3171012345670001', // Pastikan unik
                 'points' => 150,
+                'is_active' => true,
             ],
             [
                 'name' => 'Citra Lestari',
@@ -69,6 +76,7 @@ class UserSeeder extends Seeder
                 'phone_number' => '081234567891',
                 'identity_number' => '3171012345670002', // Pastikan unik
                 'points' => 75,
+                'is_active' => false,
             ],
             [
                 'name' => 'Dewi Anggraini',
@@ -76,6 +84,7 @@ class UserSeeder extends Seeder
                 'phone_number' => '081234567892',
                 'identity_number' => '3171012345670003', // Pastikan unik
                 'points' => 220,
+                'is_active' => false,
             ],
             [
                 'name' => 'Eko Prasetyo',
@@ -84,6 +93,7 @@ class UserSeeder extends Seeder
                 'identity_number' => '3171012345670004', // Pastikan unik
                 'google_id' => 'google_id_eko_123', // Contoh google_id
                 'points' => 50,
+                'is_active' => false,
             ],
             [
                 'name' => 'Putu Agus',
@@ -93,6 +103,7 @@ class UserSeeder extends Seeder
                 'citizenship' => 'WNI',
                 'identity_type' => 'KTP',
                 'points' => 120,
+                'is_active' => false,
             ],
             [
                 'name' => 'John Doe (WNA)',
@@ -102,8 +113,27 @@ class UserSeeder extends Seeder
                 'citizenship' => 'WNA',
                 'identity_type' => 'Pasport',
                 'points' => 95,
+                'is_active' => true,
             ],
         ];
+        // $citizenship = $faker->randomElement(['WNI','WNA']);
+        for ($i = 0; $i < 20; $i++) {
+            DB::table('users')->insert([
+                'name' => $faker->name,
+                'email' => $faker->unique()->safeEmail,
+                'password' => Hash::make('password123'), // Default password untuk user biasa
+                'google_id' => null,
+                'avatar' => null,
+                'remember_token' => Str::random(10),
+                'phone_number' => $faker->phoneNumber,
+                'points' => $faker->numberBetween(0,50),
+                'created_at' => now(),
+                'updated_at' => now(),
+                'role' => 'User',
+                'is_guest' => false,
+                'is_active' => $faker->boolean,
+            ]);
+        }
 
         foreach ($usersData as $userData) {
             DB::table('users')->insert([
@@ -125,5 +155,6 @@ class UserSeeder extends Seeder
                 'updated_at' => now(),
             ]);
         }
+        $this->command->getOutput()->writeln("<info>User Seeder run successfully. " . $i . " User faker created.</info>");
     }
 }
