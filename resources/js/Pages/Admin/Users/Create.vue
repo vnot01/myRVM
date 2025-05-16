@@ -187,7 +187,7 @@ const submit = () => {
                                 <!-- </option> -->
                             <!-- </select> -->
                              <SelectInput id="role" class="mt-1 block w-full" v-model="form.role" :options="roleOptionsForSelectInput" valueKey="value" 
-                                labelKey="label" placeholder="-- Pilih Role --" required/>
+                                labelKey="label" :placeholder="'-- Pilih Role --'" required/>
                                 <option v-if="placeholder" value="" disabled selected>{{ placeholder }}</option>
                             <!-- </SelectInput> -->
                             <InputError class="mt-2" :message="form.errors.role" />
@@ -211,7 +211,7 @@ const submit = () => {
                         <div>
                             <InputLabel for="citizenship" value="Kewarganegaraan (Opsional)" />
                             <SelectInput id="citizenship" class="mt-1 block w-full" v-model="form.citizenship" :options="citizenshipOptions" 
-                                placeholder="-- Pilih Kewarganegaraan --"/>
+                                :placeholder="'-- Pilih Kewarganegaraan --'"/>
                                  <!-- <select id="citizenship" v-model="form.citizenship" class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"> -->
                                     <!-- <option :value="null">-- Pilih Kewarganegaraan --</option> -->
                                     <!-- <option value="WNI">WNI (Warga Negara Indonesia)</option> -->

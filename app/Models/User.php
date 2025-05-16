@@ -29,6 +29,8 @@ class User extends Authenticatable
         'identity_number',
         'points',
         'role',
+        'email_verified_at',
+        'is_active',
         'is_guest',
     ];
 
@@ -54,9 +56,10 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_guest' => 'boolean',
             'points' => 'integer',
-            // 'citizenship' => 'string', // Enum sudah string by default
-            // 'identity_type' => 'string',// Enum sudah string by default
-            // 'role' => 'string',         // Enum sudah string by default
+            'citizenship' => 'string', // Enum sudah string by default
+            'identity_type' => 'string',// Enum sudah string by default
+            'role' => 'string',         // Enum sudah string by default
+            'is_active' => 'boolean',
         ];
     }
 

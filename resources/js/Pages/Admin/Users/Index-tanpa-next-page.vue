@@ -170,7 +170,7 @@ const openDeleteUserModal = (user) => { console.log('TODO: Hapus user:', user.na
                 <TextInput
                     type="search"
                     v-model="searchTerm"
-                    placeholder="Cari berdasarkan nama atau email..."
+                    :placeholder="'Cari berdasarkan nama atau email...'"
                     class="block w-full p-3 ps-10 text-sm dark:bg-slate-700 dark:text-gray-300 dark:placeholder-gray-400"
                 />
             </div>

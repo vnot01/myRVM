@@ -3,7 +3,7 @@
 // ... (props, refs untuk allUsers, currentPage, lastPage, isLoadingMore, initialLoadComplete, searchTerm) ...
 // ... (fungsi updateLocalUserState, onMounted, onUnmounted, watch, loadMoreUsers, handleScroll, formatDate, openModals) ...
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router,useForm } from '@inertiajs/vue3';
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import debounce from 'lodash/debounce';
 import TextInput from '@/Components/TextInput.vue';
@@ -164,13 +164,14 @@ const closeDeleteModal = () => {
 
 const confirmAndDeleteUser = () => {
     if (userToDelete.value && deleteConfirmationName.value === userToDelete.value.name) {
+        const deletedUserName = userToDelete.value.name;
         deleteForm.delete(route('admin.users.destroy', userToDelete.value.id), {
             preserveScroll: true, // Agar tidak scroll ke atas setelah redirect
             onSuccess: () => {
                 closeDeleteModal();
                 // Pesan flash akan ditangani oleh AdminLayout
                 // Daftar akan otomatis refresh karena redirect dari backend
-                console.log(`User ${userToDelete.value.name} proses hapus/nonaktif dikirim.`);
+                console.log(`User ${deletedUserName} proses hapus/nonaktif dikirim.`);
             },
             onError: (errors) => {
                 console.error('Gagal menghapus pengguna:', errors);
@@ -235,7 +236,7 @@ const confirmAndDeleteUser = () => {
                         <TextInput
                             type="search"
                             v-model="searchTerm"
-                            placeholder="Cari berdasarkan nama atau email..."
+                            :placeholder="'Cari berdasarkan nama atau email...'"
                             class="block w-full p-3 ps-10 text-sm dark:bg-slate-700 dark:text-gray-300 dark:placeholder-gray-400"
                         />
                     </div>
@@ -317,6 +318,49 @@ const confirmAndDeleteUser = () => {
                       </p>
                     </div>
                 </div>
+                <!-- === MODAL KONFIRMASI HAPUS PENGGUNA === -->
+                <Modal :show="confirmingUserDeletion" @close="closeDeleteModal">
+                    <div class="p-6 dark:bg-slate-800">
+                        <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
+                            Hapus Pengguna: {{ userToDelete?.name }}
+                        </h2>
+
+                        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                            Apakah Anda yakin ingin menghapus/menonaktifkan pengguna ini?
+                            Tindakan ini mungkin tidak dapat diurungkan sepenuhnya.
+                        </p>
+                        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                            Untuk konfirmasi, silakan ketik ulang nama pengguna: <strong class="dark:text-gray-200">{{ userToDelete?.name }}</strong>
+                        </p>
+
+                        <div class="mt-4">
+                            <TextInput
+                                type="text"
+                                class="mt-1 block w-3/4"
+                                :placeholder="'Ketik nama pengguna di sini'"
+                                v-model="deleteConfirmationName"
+                                @keyup.enter="confirmAndDeleteUser"
+                            />
+                            <InputError :message="deleteForm.errors.general" class="mt-2" /> <!-- Jika ada error umum dari backend -->
+                        </div>
+
+                        <div class="mt-6 flex justify-end">
+                            <SecondaryButton @click="closeDeleteModal">
+                                Batal
+                            </SecondaryButton>
+
+                            <DangerButton
+                                class="ms-3"
+                                :class="{ 'opacity-25': deleteForm.processing }"
+                                :disabled="deleteForm.processing || deleteConfirmationName !== userToDelete?.name"
+                                @click="confirmAndDeleteUser"
+                            >
+                                Ya, Proses Sekarang
+                            </DangerButton>
+                        </div>
+                    </div>
+                </Modal>
+                <!-- === AKHIR MODAL === -->
             </div>
         </div>
     </AdminLayout>

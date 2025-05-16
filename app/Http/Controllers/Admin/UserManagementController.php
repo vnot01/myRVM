@@ -129,6 +129,8 @@ class UserManagementController extends Controller
             'role' => 'required|string|in:Operator,User', // Sesuaikan dengan role yang valid
             'phone_number' => 'nullable|string|max:20',
             'citizenship' => 'required|string|in:WNI,WNA',
+            'points' => 'nullable|integer|min:0', // Tambahkan ini
+            'is_active' => 'nullable|boolean', // Dari form Vue, ini akan 'true' atau 'false' (boolean)',
             'identity_type' => [
                 'required_with:identity_number',
                 'string',
@@ -171,6 +173,8 @@ class UserManagementController extends Controller
                 'citizenship' => $validatedData['citizenship'],
                 'identity_type' => $validatedData['identity_type'],
                 'identity_number' => $validatedData['identity_number'],
+                'points' => $validatedData['points'],
+                'is_active' => $validatedData['is_active'],
                 'email_verified_at' => now(), // Anggap langsung terverifikasi jika dibuat oleh Admin
             ]);
 
@@ -317,7 +321,6 @@ class UserManagementController extends Controller
         // 3. Lakukan Validasi
         $validatedData = $request->validate($rules);
         info('[UserUpdate] Validation passed. Validated data:', $validatedData);
-
         DB::beginTransaction(); // Mulai transaksi
         try {
            // Langsung update properti model $user
@@ -335,7 +338,7 @@ class UserManagementController extends Controller
             Log::info('[UserUpdate] Setting is_active to:', ['is_active' => $user->is_active]);
 
 
-            // Penanganan email_verified_at
+            // // Penanganan email_verified_at
             $emailChanged = $user->isDirty('email'); // Cek apakah email field diubah SEBELUM assignment baru
 
             if ($emailChanged) {
@@ -392,8 +395,10 @@ class UserManagementController extends Controller
             }
 
             // Handle Poin
-            $previousPoints = $user->points;
+            // $previousPoints = $user->points;
+            $previousPoints = $user->getOriginal('points');
             $newPoints = (int) $validatedData['points'];
+            $user->points = $newPoints;
             if ($previousPoints !== $newPoints) {
                 $updatePayload['points'] = $newPoints;
                 PointAdjustment::create([
@@ -414,6 +419,7 @@ class UserManagementController extends Controller
             // 5. Lakukan Update
             // Cek apakah ada perubahan sebelum save untuk efisiensi (opsional)
             if ($user->isDirty()) { // Cek apakah ada field yang berubah
+                info('[UserUpdate] Attempting to save user with points: if ($user->isDirty()) { ', ['points' => $user->points]);
                 $user->save();
                 info('User model saved to DB.', ['user_id' => $user->id, 'changed_fields' => $user->getChanges()]);
             } else {

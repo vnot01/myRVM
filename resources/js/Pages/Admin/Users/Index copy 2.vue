@@ -97,7 +97,7 @@ const openDeleteUserModal = (user) => {
                                 type="text"
                                 class="mt-1 block w-full md:w-2/3 lg:w-1/2"
                                 v-model="searchTerm"
-                                placeholder="Cari berdasarkan nama atau email..."
+                                :placeholder="'Cari berdasarkan nama atau email...'"
                             />
                         </div>
                         <!-- === AKHIR BAGIAN ATAS HALAMAN KONTEN === -->
