@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder; // Untuk scope
+use Illuminate\Support\Facades\Cache; // Untuk clear cache nanti
+
 
 class PromptTemplate extends Model
 {
@@ -33,6 +35,23 @@ class PromptTemplate extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
+    }
+
+    // Event listener untuk membersihkan cache saat template diupdate/dihapus
+    // atau saat ada yang diaktifkan.
+    protected static function booted()
+    {
+        static::saved(function ($promptTemplate) {
+            // Jika template ini diaktifkan atau status aktifnya berubah
+            if ($promptTemplate->isDirty('is_active') || $promptTemplate->is_active) {
+                Cache::forget('active_prompt_template');
+            }
+        });
+
+        static::deleted(function ($promptTemplate) {
+            // Jika template yang aktif dihapus (seharusnya dicegah, tapi sebagai pengaman)
+            Cache::forget('active_prompt_template');
+        });
     }
 
     /**
