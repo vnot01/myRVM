@@ -14,6 +14,72 @@ use Illuminate\Support\Facades\Cache;
 class GeminiVisionService
 {
 
+
+    ////=============================////
+    ////=== Custome Vision API v3 ===////
+    ////=============================////
+    public function analyzeWithCustomPromptAndConfig($imageFile, string $customPrompt, ?array $generationConfig = null): array
+    {
+        $apiKey = config('services.google.api_key');
+        $apiEndpoint = config('services.google.api_endpoint_flash'); // atau pro
+        // $apiEndpoint = config('services.google.api_endpoint_pro'); // atau pro
+
+        if (!$apiKey || !$apiEndpoint) {
+            Log::error('GeminiService: Google API Key or Endpoint not configured for custom prompt.');
+            throw new \Exception('Google API Key or Endpoint not configured.');
+        }
+
+        $imageData = base64_encode(file_get_contents($imageFile->getRealPath()));
+        $payload = [
+            'contents' => [
+                [
+                    'parts' => [
+                        ['text' => $customPrompt],
+                        ['inline_data' => ['mime_type' => $imageFile->getMimeType(), 'data' => $imageData]]
+                    ]
+                ]
+            ],
+        ];
+        if ($generationConfig) {
+            $payload['generationConfig'] = $generationConfig;
+        }
+
+        // ... (Logika cURL untuk memanggil API Gemini - sama seperti di atas) ...
+        // ... (Parsing respons - sama seperti di atas) ...
+        // return $parsedResults; // atau array yang lebih lengkap dengan raw_text juga
+
+        // --- PASTIKAN INISIALISASI cURL ADA DI SINI ---
+        $ch = curl_init($apiEndpoint . '?key=' . $apiKey);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        // curl_setopt($ch, CURLOPT_TIMEOUT, 30); // Opsional
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch); // Ini sudah ada sebelumnya
+
+        $geminiResponse = json_decode($response, true);
+        $rawText = $geminiResponse['candidates'][0]['content']['parts'][0]['text'] ?? null;
+        $parsedData = [];
+        if ($rawText) {
+            $jsonAttempt = json_decode(trim($rawText), true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($jsonAttempt)) {
+                $parsedData = $jsonAttempt;
+            } else {
+                $parsedData = ['error' => 'Failed to parse Gemini response as JSON', 'raw_text' => $rawText];
+            }
+        }
+        return [
+            'raw_text' => $rawText,
+            'parsed_data' => $parsedData,
+            'http_code' => $httpCode,
+            'curl_error' => $curlError // Kembalikan juga curl error untuk debug
+        ];
+    }
+
     ////=======================////
     //// === Vision API v3 === ////
     ////=======================////
@@ -49,13 +115,13 @@ class GeminiVisionService
     {
         try {
             list($imageBase64, $imageMimeType) = $this->processAndEncodeImage($imageFile);
-            
+
             $activeTemplate = $this->getActivePromptTemplate();
             $prompt = $activeTemplate->buildFullPrompt();
-            
+
             // Ambil generation config dan PASTIKAN itu array
             $generationConfig = $activeTemplate->generation_config; // $casts seharusnya sudah membuatnya jadi array
-        
+
             // TAMBAHKAN PENGECEKAN DAN DECODE MANUAL JIKA PERLU:
             if (is_string($generationConfig)) {
                 Log::warning('Generation config was retrieved as a string, attempting to decode manually.', [
@@ -63,32 +129,32 @@ class GeminiVisionService
                     'string_config' => $generationConfig
                 ]);
                 // Coba decode string JSON menjadi array
-                $decodedConfig = json_decode($generationConfig, true); 
+                $decodedConfig = json_decode($generationConfig, true);
                 // Periksa apakah decoding berhasil dan hasilnya array
                 if (json_last_error() === JSON_ERROR_NONE && is_array($decodedConfig)) {
                     $generationConfig = $decodedConfig; // Gunakan hasil decode
                 } else {
-                     Log::error('Failed to manually decode generation_config string from database.', [
-                         'template_id' => $activeTemplate->id, 
-                         'json_error' => json_last_error_msg()
-                     ]);
+                    Log::error('Failed to manually decode generation_config string from database.', [
+                        'template_id' => $activeTemplate->id,
+                        'json_error' => json_last_error_msg()
+                    ]);
                     $generationConfig = null; // Set ke null jika decode gagal
                 }
             } elseif (!is_array($generationConfig) && $generationConfig !== null) {
                 // Jika bukan string, bukan array, dan bukan null (tipe data aneh)
                 Log::warning('Generation config has unexpected type, setting to null.', [
-                    'template_id' => $activeTemplate->id, 
+                    'template_id' => $activeTemplate->id,
                     'type' => gettype($generationConfig)
                 ]);
-                 $generationConfig = null;
+                $generationConfig = null;
             }
             // Pada titik ini, $generationConfig seharusnya sudah berupa array atau null
-        
+
             Log::debug('Using prompt template:', ['name' => $activeTemplate->name]);
             Log::debug('Built prompt:', ['prompt' => $prompt]);
             // Log $generationConfig SETELAH potensi decode manual
-            Log::debug('Generation config (final):', ['config' => $generationConfig]); 
-        
+            Log::debug('Generation config (final):', ['config' => $generationConfig]);
+
             return $this->callGeminiApi($imageBase64, $imageMimeType, $prompt, $generationConfig); // $generationConfig sekarang pasti array atau null
 
         } catch (Exception $e) {
@@ -102,14 +168,16 @@ class GeminiVisionService
     protected function processAndEncodeImage(UploadedFile $imageFile): array
     {
         // ... (Kode ini tetap sama seperti sebelumnya) ...
-         try {
+        try {
             $manager = new ImageManager(new GdDriver());
             $img = $manager->read($imageFile->getRealPath());
             $img->scaleDown(width: 800, height: 800);
             $resizedImageData = $img->toJpeg(85)->toString();
             $imageMimeType = 'image/jpeg';
             $imageBase64 = base64_encode($resizedImageData);
-            if (empty($imageBase64)) { throw new Exception('Failed to encode image.'); }
+            if (empty($imageBase64)) {
+                throw new Exception('Failed to encode image.');
+            }
             return [$imageBase64, $imageMimeType];
         } catch (Exception $e) {
             Log::error('Image processing failed: ' . $e->getMessage());
@@ -131,33 +199,38 @@ class GeminiVisionService
         Log::info('Gemini Service - Preparing to call Google API...', ['endpoint' => $this->apiEndpoint]);
         $startTime = microtime(true); // Catat waktu mulai
         $response = Http::timeout(60)->withHeaders(['Content-Type' => 'application/json'])
-                      ->post($this->apiEndpoint . '?key=' . $this->apiKey, $payload);
+            ->post($this->apiEndpoint . '?key=' . $this->apiKey, $payload);
         $endTime = microtime(true); // Catat waktu selesai
         Log::info('Gemini Service - Google API call completed.', [
             'status_code' => $response->status(),
             'duration_seconds' => round($endTime - $startTime, 3)
         ]);
-        if (!$response->successful()) { /* ... (Error handling sama) ... */ 
+        if (!$response->successful()) { /* ... (Error handling sama) ... */
             $errorBody = $response->body();
             Log::error('Gemini API Error:', ['status' => $response->status(), 'body' => $errorBody]);
             $apiErrorDetails = $response->json();
             $errorMessage = 'Failed to call Gemini API. Status: ' . $response->status();
-            if (isset($apiErrorDetails['error']['message'])) { $errorMessage .= ' Details: ' . $apiErrorDetails['error']['message']; } 
-            else { $errorMessage .= ' Body: ' . $errorBody; }
+            if (isset($apiErrorDetails['error']['message'])) {
+                $errorMessage .= ' Details: ' . $apiErrorDetails['error']['message'];
+            } else {
+                $errorMessage .= ' Body: ' . $errorBody;
+            }
             throw new Exception($errorMessage);
         }
 
         $responseText = $response->json()['candidates'][0]['content']['parts'][0]['text'] ?? null;
         // ... (Logika penanganan $responseText null/kosong sama) ...
-         if ($responseText === null) {
-             $finishReason = $response->json()['candidates'][0]['finishReason'] ?? 'UNKNOWN';
-             if ($finishReason === 'SAFETY') { throw new Exception('Gemini API request blocked due to safety settings.'); }
-             Log::info('Gemini API response had no text part.', ['response' => $response->json()]);
-         }
-         if (trim($responseText ?? '') === '') {
-             Log::info('Gemini API returned empty string. Assuming empty list.');
-             $responseText = '[]';
-         }
+        if ($responseText === null) {
+            $finishReason = $response->json()['candidates'][0]['finishReason'] ?? 'UNKNOWN';
+            if ($finishReason === 'SAFETY') {
+                throw new Exception('Gemini API request blocked due to safety settings.');
+            }
+            Log::info('Gemini API response had no text part.', ['response' => $response->json()]);
+        }
+        if (trim($responseText ?? '') === '') {
+            Log::info('Gemini API returned empty string. Assuming empty list.');
+            $responseText = '[]';
+        }
 
         return $this->parseGeminiResponse($responseText);
     }
@@ -167,27 +240,35 @@ class GeminiVisionService
      */
     protected function parseGeminiResponse(?string $responseText): array
     {
-         // ... (Kode ini tetap sama seperti sebelumnya) ...
-         if ($responseText === null || trim($responseText) === '') { return []; }
-         $jsonString = $responseText;
-         if (strpos($jsonString, '```json') !== false) {
-             if (preg_match('/```json\s*([\s\S]*?)\s*```/', $jsonString, $matches)) { $jsonString = $matches[1]; } 
-             else { $jsonString = str_replace(['```json', '```'], '', $jsonString); }
-         }
-         $jsonString = str_replace('```', '', trim($jsonString));
-         try {
-             $parsedResponse = json_decode($jsonString, true, 512, JSON_THROW_ON_ERROR);
-             if (!is_array($parsedResponse)) {
-                 if ($jsonString === '[]' && is_array($parsedResponse)) { return $parsedResponse; }
-                 Log::warning('Parsed Gemini response is not a list.', ['original' => $responseText, 'parsed_str' => $jsonString, 'result' => $parsedResponse]);
-                 return [];
-             }
-             return $parsedResponse;
-         } catch (\JsonException $e) {
-             Log::error('Failed to parse JSON from Gemini:', ['error' => $e->getMessage(), 'text' => $responseText]);
-             throw new Exception('Failed to parse JSON response from Gemini: ' . $e->getMessage());
-         }
+        // ... (Kode ini tetap sama seperti sebelumnya) ...
+        if ($responseText === null || trim($responseText) === '') {
+            return [];
+        }
+        $jsonString = $responseText;
+        if (strpos($jsonString, '```json') !== false) {
+            if (preg_match('/```json\s*([\s\S]*?)\s*```/', $jsonString, $matches)) {
+                $jsonString = $matches[1];
+            } else {
+                $jsonString = str_replace(['```json', '```'], '', $jsonString);
+            }
+        }
+        $jsonString = str_replace('```', '', trim($jsonString));
+        try {
+            $parsedResponse = json_decode($jsonString, true, 512, JSON_THROW_ON_ERROR);
+            if (!is_array($parsedResponse)) {
+                if ($jsonString === '[]' && is_array($parsedResponse)) {
+                    return $parsedResponse;
+                }
+                Log::warning('Parsed Gemini response is not a list.', ['original' => $responseText, 'parsed_str' => $jsonString, 'result' => $parsedResponse]);
+                return [];
+            }
+            return $parsedResponse;
+        } catch (\JsonException $e) {
+            Log::error('Failed to parse JSON from Gemini:', ['error' => $e->getMessage(), 'text' => $responseText]);
+            throw new Exception('Failed to parse JSON response from Gemini: ' . $e->getMessage());
+        }
     }
+
     ////===========================////
     //// === Vision API v3 END === ////
     ////===========================////

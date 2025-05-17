@@ -51,6 +51,7 @@ Route::middleware(['auth', 'verified', 'role:Admin,Operator'])
         Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy')->middleware('role:Admin');
 
         // --- RUTE BARU UNTUK PROMPT TEMPLATE MANAGEMENT ---
+        Route::post('/prompt-templates/test-prompt', [PromptTemplateController::class, 'testPrompt'])->name('prompt-templates.test');
         Route::resource('/prompt-templates', PromptTemplateController::class)->except(['show']);
         // Kita akan tambahkan rute 'activate' secara terpisah nanti
         Route::post('/prompt-templates/{promptTemplate}/activate', [PromptTemplateController::class, 'activate'])->name('prompt-templates.activate');

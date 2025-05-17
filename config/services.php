@@ -42,6 +42,7 @@ return [
 
         'api_key' => env('GOOGLE_API_KEY'),
         'api_endpoint_flash' => env('GEMINI_API_ENDPOINT_FLASH'),
+        'api_endpoint_pro' => env('GEMINI_API_ENDPOINT'),
     ],
 
 ];
