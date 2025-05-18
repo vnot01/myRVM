@@ -249,33 +249,44 @@ const handleTestImageChange = (event) => {
 };
 
 const submitTestPrompt = async () => {
-    assembleFullPrompt(); // Pastikan menggunakan full_prompt_text_generated yang terbaru
-    if (!testImageFile.value) { alert('Silakan pilih gambar contoh untuk pengujian.'); return; }
+    assembleFullPrompt(); // Merakit form.full_prompt_text_generated
+    const currentGeneratedConfigJson = assembleGenerationConfigJson(); // Merakit config JSON
+
+    if (!testImageFile.value) {
+        alert('Silakan pilih gambar contoh untuk pengujian.');
+        return;
+    }
     if (!form.full_prompt_text_generated || form.full_prompt_text_generated.includes('{{')) {
-        alert('Harap lengkapi semua placeholder atau isi segmen prompt sebelum menguji.');
+        // Cek jika masih ada placeholder yang belum terisi di hasil rakitan
+        alert('Harap lengkapi semua placeholder di prompt atau isi segmen prompt sebelum menguji.');
         return;
     }
 
-    isTestingPrompt.value = true; testResult.value = null; testError.value = null;
+    isTestingPrompt.value = true;
+    testResult.value = null;
+    testError.value = null;
+
     const formDataTest = new FormData();
     formDataTest.append('image', testImageFile.value);
-    // Modifikasi untuk mengirim full_prompt dan config yang sudah dirakit
-    formDataTest.append('full_prompt', form.full_prompt_text_generated);
-    formDataTest.append('generation_config_json', assembleGenerationConfigJson());
+    formDataTest.append('full_prompt', form.full_prompt_text_generated); // Kirim hasil rakitan
+    formDataTest.append('generation_config_json', currentGeneratedConfigJson); // Kirim hasil rakitan
 
     try {
-        // Pastikan endpoint test di ConfiguredPromptController sudah disesuaikan
-        // untuk menerima 'full_prompt' bukan segmen-segmen terpisah.
         const response = await axios.post(route('admin.configured-prompts.test'), formDataTest, {
-             headers: { 'Content-Type': 'multipart/form-data' }
+            headers: { 'Content-Type': 'multipart/form-data' }
         });
         testResult.value = response.data;
+        console.log('Test Prompt Result:', response.data);
     } catch (error) {
-        if (error.response) {
-            testError.value = error.response.data.error || (error.response.data.errors ? JSON.stringify(error.response.data.errors) : 'Terjadi kesalahan saat pengujian.');
-            testResult.value = error.response.data;
+        console.error('Error testing prompt:', error);
+        if (error.response && error.response.data) { // Cek error.response.data dulu
+            testError.value = error.response.data.error || // Dari JSON {error: "pesan"}
+                (error.response.data.errors ? JSON.stringify(error.response.data.errors) : // Dari validasi Laravel
+                    (typeof error.response.data === 'string' ? error.response.data : 'Terjadi kesalahan server yang tidak diketahui.')); // Jika responsnya string
+        } else if (error.request) {
+            testError.value = 'Tidak ada respons dari server. Periksa koneksi atau log backend.';
         } else {
-            testError.value = 'Tidak dapat terhubung ke server untuk pengujian.';
+            testError.value = 'Terjadi kesalahan saat menyiapkan request pengujian: ' + error.message;
         }
     } finally {
         isTestingPrompt.value = false;
@@ -434,7 +445,7 @@ const submitTestPrompt = async () => {
                                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                             </button>
                                         </div>
-                                        <button type="button" @click="addFieldTo(form.outputJsonFieldsManual)" class="mt-2 text-sm text-sky-600 ...">
+                                        <button type="button" @click="addFieldTo(form.outputJsonFieldsManual)" class="mt-2 text-sm text-sky-600 hover:text-sky-800 dark:text-sky-400 dark:hover:text-sky-300">
                                             + Tambah Field JSON untuk Output
                                         </button>
                                     </div>
@@ -478,9 +489,9 @@ const submitTestPrompt = async () => {
                                 <div v-if="showAdvancedGenerationConfig" class="space-y-4 p-4 border dark:border-gray-600 rounded-md mt-2">
                                     <!-- Temperature -->
                                     <div>
-                                        <div class="flex items-center justify-between">
+                                       <div class="flex items-center space-x-1">
                                             <InputLabel for="gen_temperature" value="Temperature (Keacakan)" />
-                                            <!-- <InfoTooltip textToShow="Mengontrol keacakan (0.0 - 1.0). Lebih tinggi = lebih kreatif." /> -->
+                                            <InfoTooltip textToShow="Mengontrol keacakan (0.0 - 1.0). Lebih tinggi = lebih kreatif." position="top" horizontalAlign="start" />
                                         </div>
                                         <input id="gen_temperature" type="range" min="0" max="1" step="0.01" v-model.number="form.gen_temperature" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 mt-1" />
                                         <TextInput type="number" min="0" max="1" step="0.01" v-model.number="form.gen_temperature" class="mt-1 w-24 text-sm" />
@@ -488,27 +499,30 @@ const submitTestPrompt = async () => {
                                     </div>
                                     <!-- Max Output Tokens -->
                                     <div>
-                                        <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-1">
                                             <InputLabel for="gen_max_output_tokens" value="Max Output Tokens" />
-                                            <!-- <InfoTooltip textToShow="Jumlah maksimum token/kata yang dihasilkan." /> -->
+                                            <!-- Tooltip di atas, rata kiri dengan ikon -->
+                                            <InfoTooltip textToShow="Jumlah maksimum token (kata/bagian kata) yang dapat dihasilkan oleh model dalam satu respons."
+                                                position="top" horizontalAlign="start" 
+                                            />
                                         </div>
                                         <TextInput id="gen_max_output_tokens" type="number" min="1" step="1" v-model.number="form.gen_max_output_tokens" class="mt-1 block w-full" />
                                         <InputError class="mt-2" :message="form.errors.gen_max_output_tokens" />
                                     </div>
                                     <!-- Top K -->
                                     <div>
-                                        <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-1">
                                             <InputLabel for="gen_top_k" value="Top K" />
-                                            <!-- <InfoTooltip textToShow="Memilih dari K kata paling mungkin. (Contoh: 0-40, 0 untuk tidak menggunakan)" /> -->
+                                            <InfoTooltip textToShow="Memilih dari K kata paling mungkin. (Contoh: 0-40, 0 untuk tidak menggunakan)" position="top" horizontalAlign="start"/>
                                         </div>
                                         <TextInput id="gen_top_k" type="number" min="0" step="1" v-model.number="form.gen_top_k" class="mt-1 block w-full" />
                                         <InputError class="mt-2" :message="form.errors.gen_top_k" />
                                     </div>
                                     <!-- Top P -->
                                     <div>
-                                        <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-1">
                                             <InputLabel for="gen_top_p" value="Top P" />
-                                            <!-- <InfoTooltip textToShow="Probabilitas kumulatif. (0.0 - 1.0)" /> -->
+                                            <InfoTooltip textToShow="Probabilitas kumulatif. (0.0 - 1.0)" position="top" horizontalAlign="start"/>
                                         </div>
                                         <input id="gen_top_p" type="range" min="0" max="1" step="0.01" v-model.number="form.gen_top_p" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 mt-1" />
                                         <TextInput type="number" min="0" max="1" step="0.01" v-model.number="form.gen_top_p" class="mt-1 w-24 text-sm" />
@@ -516,12 +530,12 @@ const submitTestPrompt = async () => {
                                     </div>
                                     <!-- Stop Sequences -->
                                     <div>
-                                        <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-1">
                                             <InputLabel for="gen_stop_sequences_text" value="Stop Sequences (pisahkan dengan koma)" />
                                             <!-- <info-tooltip text="This is some helpful information"> -->
                                             <!-- Hover over me for info -->
                                             <!-- </info-tooltip> -->
-                                            <!-- <InfoTooltip textToShow="Kata/frasa yang menghentikan output." /> -->
+                                            <InfoTooltip textToShow="Kata/frasa yang menghentikan output." position="top" horizontalAlign="start" />
                                         </div>
                                         <TextareaInput id="gen_stop_sequences_text"
                                             class="mt-1 block w-full font-mono text-sm"
@@ -542,7 +556,50 @@ const submitTestPrompt = async () => {
 
                         <!-- Bagian Test Prompt Cepat -->
                         <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                            <!-- ... UI Test Prompt Cepat Anda yang sudah ada ... -->
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Uji Prompt Ini</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                Unggah gambar contoh untuk menguji konfigurasi prompt di atas secara langsung.
+                            </p>
+                            <div class="mb-4">
+                                <InputLabel for="test_image" value="Gambar Contoh untuk Pengujian" />
+                                <input class="block w-full text-sm text-slate-500 mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 dark:file:bg-slate-700 file:text-violet-700 dark:file:text-slate-300 hover:file:bg-violet-100 dark:hover:file:bg-slate-600 dark:text-slate-400"
+                                    id="test_image" type="file" @change="handleTestImageChange" accept="image/*" />
+                            </div>
+
+                            <div v-if="testImagePreview" class="mb-4">
+                                <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Preview Gambar Tes:</p>
+                                <img :src="testImagePreview" alt="Preview Gambar Tes" class="mt-2 rounded-md max-h-60 border border-gray-300 dark:border-gray-600" />
+                            </div>
+
+                            <PrimaryButton type="button" @click="submitTestPrompt" :disabled="isTestingPrompt || !testImageFile">
+                                <span v-if="isTestingPrompt">Menguji...</span>
+                                <span v-else>Uji Prompt dengan Gambar Ini</span>
+                            </PrimaryButton>
+
+                            <div v-if="isTestingPrompt" class="mt-4 text-center">
+                                <svg class="animate-spin h-6 w-6 text-gray-700 dark:text-gray-300 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Menghubungi Gemini Vision...</p>
+                            </div>
+
+                            <div v-if="testError" class="mt-4 p-3 bg-red-100 dark:bg-red-700/30 border border-red-300 dark:border-red-600 rounded-md">
+                                <p class="font-semibold text-red-700 dark:text-red-300">Error Pengujian:</p>
+                                <pre class="mt-1 text-xs text-red-600 dark:text-red-400 whitespace-pre-wrap">{{ testError }}</pre>
+                            </div>
+
+                            <div v-if="testResult && testResult.success" class="mt-4 p-3 bg-green-50 dark:bg-green-700/30 border border-green-300 dark:border-green-600 rounded-md animate-pulse">
+                                <p class="font-semibold text-green-700 dark:text-green-300">Hasil Pengujian Sukses:</p>
+                                <h4 class="mt-2 font-medium text-sm text-gray-700 dark:text-gray-300">Teks Respons Mentah dari Gemini:</h4>
+                                <pre class="mt-1 text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded whitespace-pre-wrap text-gray-700 dark:text-gray-300">{{ testResult.gemini_raw_response_text }}</pre>
+                                <h4 class="mt-3 font-medium text-sm text-gray-700 dark:text-gray-300">Hasil Parsing (Jika JSON):</h4>
+                                <pre class="mt-1 text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded whitespace-pre-wrap text-gray-700 dark:text-gray-300">{{ JSON.stringify(testResult.parsed_results, null, 2) }}</pre>
+                                <h4 class="mt-3 font-medium text-sm text-gray-700 dark:text-gray-300">Prompt yang Dikirim (Debug):</h4>
+                                <pre class="mt-1 text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded whitespace-pre-wrap text-gray-700 dark:text-gray-300">{{ testResult.full_prompt_sent }}</pre>
+                                <h4 class="mt-3 font-medium text-sm text-gray-700 dark:text-gray-300">Config Generasi yang Digunakan (Debug):</h4>
+                                <pre class="mt-1 text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded whitespace-pre-wrap text-gray-700 dark:text-gray-300">{{ JSON.stringify(testResult.generation_config_used, null, 2) }}</pre>
+                            </div>
                         </div>
 
                         <!-- Tombol Aksi Form -->

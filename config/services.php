@@ -40,9 +40,17 @@ return [
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URI_WEB'),
 
+
+
         'api_key' => env('GOOGLE_API_KEY'),
         'api_endpoint_flash' => env('GEMINI_API_ENDPOINT_FLASH'),
-        'api_endpoint_pro' => env('GEMINI_API_ENDPOINT'),
+        'api_endpoint_pro' => env('GEMINI_API_ENDPOINT_PRO'),
+        'api_endpoint_2_5_flash_preview' => env('GEMINI_API_ENDPOINT_2_5_flash_preview'),
+        'api_endpoint_2_5_pro_preview' => env('GEMINI_API_ENDPOINT_2_5_pro_preview'),
+        'api_endpoint_pro_latest' => env('GEMINI_API_ENDPOINT_PRO_LATEST'),
+        'api_endpoint_flash_latest' => env('GEMINI_API_ENDPOINT_FLASH_LATEST'),
+        
+        
     ],
 
 ];

@@ -4,8 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ConfiguredPrompt;
-use App\Models\PromptTemplate; // Untuk memilih template dasar
-use App\Models\PromptComponent; // Untuk memilih komponen
+use App\Models\PromptTemplate;
+use App\Models\PromptComponent;
+use App\Services\GeminiVisionService; // Pastikan ini di-import
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -21,6 +22,13 @@ class ConfiguredPromptController extends Controller
     // GeminiVisionService akan diinject jika diperlukan untuk merakit/menguji prompt saat save
     // protected GeminiVisionService $geminiService;
     // public function __construct(GeminiVisionService $geminiService) { /* ... */ }
+
+    protected GeminiVisionService $geminiService;
+
+    public function __construct(GeminiVisionService $geminiService)
+    {
+        $this->geminiService = $geminiService;
+    }
 
 
     public function index(Request $request)
@@ -192,5 +200,89 @@ class ConfiguredPromptController extends Controller
         }
     }
 
+    /**
+     * Test a given prompt configuration with an image.
+     * Metode ini akan dipanggil oleh UI "Test Prompt Cepat".
+     */
+    public function testPrompt(Request $request)
+    {
+        // Otorisasi dasar (rute sudah dilindungi role:Admin)
+        // if (!Auth::check() || Auth::user()->role !== 'Admin') {
+        //     return response()->json(['error' => 'Unauthorized'], 403);
+        // }
+
+        info('[TestPrompt] Received request to test prompt with image and prompt.');
+        $validator = Validator::make($request->all(), [
+            'image' => 'required|image|mimes:jpeg,png,jpg|max:5120',
+            'full_prompt' => 'required|string', // Menerima full_prompt yang sudah dirakit
+            'generation_config_json' => ['required', 'json'], // Menerima JSON string
+        ]);
+
+        if ($validator->fails()) {
+            Log::warning('[TestPrompt] Validation failed:', $validator->errors()->toArray());
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $imageFile = $request->file('image');
+        $fullPrompt = $request->input('full_prompt');
+        $generationConfigJson = $request->input('generation_config_json'); // Ini adalah STRING JSON
+        $generationConfig = null;
+        // info('[TestPrompt] String JSON Config:', ['config_string' => $generationConfigJson]);
+        // Log input dengan benar
+        // info('[TestPrompt] Received raw inputs:', [
+        //     'has_image' => $request->hasFile('image'),
+        //     'full_prompt_length' => strlen($fullPrompt),
+        //     'generation_config_json_string' => $generationConfigJson // Log string JSON sebagai bagian dari array konteks
+        // ]);
+
+        if ($generationConfigJson) {
+            $decodedConfig = json_decode($generationConfigJson, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decodedConfig)) {
+                $generationConfig = $decodedConfig;
+                // info('[TestPrompt] Parsed generation_config:', ['json_string' => $generationConfigJson]); // $generationConfig sekarang array, jadi ini benar
+            } else {
+                Log::warning('[TestPrompt] Invalid JSON for generation_config', ['json_string' => $generationConfigJson]);
+                // return response()->json(['error' => 'Format JSON untuk Generation Config tidak valid.'], 400); // Pertimbangkan ini
+            }
+        }
+
+        info('[TestPrompt] Testing with received prompt and config.', [
+            'prompt_length' => strlen($fullPrompt),
+            'has_gen_config' => !is_null($generationConfig)
+        ]);
+
+        try {
+            $results = $this->geminiService->analyzeWithCustomPromptAndConfig(
+                $imageFile,
+                $fullPrompt,
+                $generationConfig // Ini sudah array atau null
+            );
+
+            // info('[TestPrompt] : curl_error = ',$results['curl_error']);
+            // info('[TestPrompt] : http_code = ',$results['http_code']);
+            // info('[TestPrompt] : parsed_data = ',$results['parsed_data']);
+            // info('[TestPrompt] : raw_text = ',$results['raw_text']);
+            // Periksa hasil dari service
+            if (isset($results['curl_error']) && $results['curl_error']) {
+                 return response()->json(['error' => 'Gagal menghubungi Gemini API: ' . $results['curl_error']], 500);
+            }
+            if ($results['http_code'] !== 200) {
+                 return response()->json(['error' => 'Gemini API merespons dengan error: ' . $results['http_code'], 'details' => $results['parsed_data'] ?? $results['raw_text']], $results['http_code']);
+            }
+
+            return response()->json([
+                'success' => true,
+                'gemini_raw_response_text' => $results['raw_text'],
+                'parsed_results' => $results['parsed_data'],
+                'full_prompt_sent' => $fullPrompt, // Untuk debug di frontend
+                'generation_config_used' => $generationConfig // Untuk debug di frontend
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('[TestPrompt] Exception during Gemini API call: ' . $e->getMessage(), ['trace' => Str::limit($e->getTraceAsString(), 1500)]);
+            return response()->json(['error' => 'Terjadi kesalahan internal server saat pengujian: ' . $e->getMessage()], 500);
+        }
+    }
+    
     // destroy, activate, testPrompt akan ditambahkan/disempurnakan
 }
