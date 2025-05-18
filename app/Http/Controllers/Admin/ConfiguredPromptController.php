@@ -167,7 +167,7 @@ class ConfiguredPromptController extends Controller
             'label_guidance_segment' => 'required_without:prompt_template_id|nullable|string',
             'output_instructions_segment' => 'required_without:prompt_template_id|nullable|string',
         ]);
-
+        info('[ConfiguredPromptUpdate] Validation passed. Data for ID: ' . $configuredPrompt->id, $validated);
         DB::beginTransaction();
         try {
             $generationConfigFinal = json_decode($validated['generation_config_final_json'], true);
@@ -177,6 +177,8 @@ class ConfiguredPromptController extends Controller
 
             // Logika Versioning (Buat record baru sebagai revisi)
             $newVersionNumber = $configuredPrompt->version + 1;
+            // root_configured_prompt_id menunjuk ke ID dari versi pertama (original)
+            // Jika configuredPrompt yang diedit adalah versi pertama, root_id nya adalah id nya sendiri.
             $rootPromptId = $configuredPrompt->root_configured_prompt_id ?? $configuredPrompt->id;
 
             // Simpan sebagai versi baru
@@ -190,9 +192,9 @@ class ConfiguredPromptController extends Controller
                 'version' => $newVersionNumber,
                 'root_configured_prompt_id' => $rootPromptId,
             ]);
-
+            info('[ConfiguredPromptUpdate] New version created.', ['id' => $newVersionPrompt->id, 'version' => $newVersionNumber, 'root_id' => $rootPromptId]);
             // Hapus mapping lama dari versi SEBELUMNYA jika Anda tidak ingin menumpuk
-            // $configuredPrompt->componentMappings()->delete(); // Atau update mapping dari $newVersionPrompt
+            $configuredPrompt->componentMappings()->delete(); // Atau update mapping dari $newVersionPrompt
 
             // Buat mapping baru untuk versi baru jika ada
             if ($newVersionPrompt->prompt_template_id && !empty($validated['mappings'])) {
@@ -205,6 +207,7 @@ class ConfiguredPromptController extends Controller
                 }
                 if (!empty($mappingsToCreate)) {
                     $newVersionPrompt->componentMappings()->createMany($mappingsToCreate);
+                    info('[ConfiguredPromptUpdate] Component mappings created for new version.', ['count' => count($mappingsToCreate)]);
                 }
             }
 
@@ -216,10 +219,15 @@ class ConfiguredPromptController extends Controller
             // }
 
             DB::commit();
-            return redirect()->route('admin.configured-prompts.index')->with('success', 'Konfigurasi prompt berhasil diperbarui (sebagai versi baru).');
+            return redirect()->route('admin.configured-prompts.index')
+                ->with('success', 'Konfigurasi prompt berhasil diperbarui (sebagai versi ' . $newVersionNumber . '). Versi lama tetap tersimpan.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            Log::warning('[ConfiguredPromptUpdate] ValidationException during update:', ['errors' => $e->errors()]);
+            return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error updating configured prompt: ' . $e->getMessage(), ['id' => $configuredPrompt->id, 'trace' => $e->getTraceAsString()]);
+            Log::error('Error updating configured prompt: ' . $e->getMessage(), ['id' => $configuredPrompt->id, 'trace' => Str::limit($e->getTraceAsString(),1000)]);
             return redirect()->back()->with('error', 'Gagal memperbarui konfigurasi prompt: ' . $e->getMessage())->withInput();
         }
     }

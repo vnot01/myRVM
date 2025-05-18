@@ -17,39 +17,84 @@ const props = defineProps({
     errors: Object, // Error validasi dari backend (otomatis dari Inertia)
 });
 
+// Helper untuk parse JSON dengan aman
 const safeJsonParse = (jsonString, defaultValue = null) => {
-    if (typeof jsonString === 'object' && jsonString !== null) return jsonString; // Sudah objek/array
-    if (typeof jsonString !== 'string' || !jsonString) return defaultValue;
+    if (!jsonString) return defaultValue;
     try {
         const parsed = JSON.parse(jsonString);
         return parsed;
     } catch (e) {
-        console.warn("Failed to parse JSON string in safeJsonParse:", jsonString, e);
+        console.warn("Failed to parse JSON string:", jsonString, e);
         return defaultValue;
     }
 };
 
-const initialGenConfig = computed(() => props.configuredPrompt?.generation_config_final || {});
+// Inisialisasi form dengan data dari props.configuredPrompt
+const initialGenerationConfig = computed(() => {
+    return props.configuredPrompt?.generation_config_final || // Jika sudah objek/array
+           safeJsonParse(props.configuredPrompt?.generation_config_final_json, {}); // Jika masih string JSON
+});
+// Untuk mengisi outputJsonFieldsManual jika tidak ada template atau placeholder output tidak pakai komponen
+const parseFullPromptToSegments = (fullPrompt) => {
+    // Ini adalah parsing yang SANGAT SEDERHANA dan rapuh.
+    // Anda mungkin perlu regex yang lebih canggih jika formatnya kompleks.
+    const segments = {
+        target: '', condition: '', labels: '', output: ''
+    };
+    if (!fullPrompt) return segments;
+
+    const targetMatch = fullPrompt.match(/Target:\s*([\s\S]*?)\nCondition:/i);
+    if (targetMatch) segments.target = targetMatch[1].trim();
+
+    const conditionMatch = fullPrompt.match(/Condition:\s*([\s\S]*?)\nLabel Guidance:/i);
+    if (conditionMatch) segments.condition = conditionMatch[1].trim();
+
+    const labelsMatch = fullPrompt.match(/Label Guidance:\s*([\s\S]*?)\nOutput Instructions:/i);
+    if (labelsMatch) segments.labels = labelsMatch[1].trim();
+
+    const outputMatch = fullPrompt.match(/Output Instructions:\s*([\s\S]*)/i);
+    if (outputMatch) segments.output = outputMatch[1].trim();
+
+    return segments;
+};
+
+const initialOutputJsonFields = computed(() => {
+    // Jika output_instructions_segment adalah JSON yang valid dari key-value
+    // kita coba ubah kembali ke array objek. Ini butuh logika parsing yang lebih canggih
+    // atau simpan struktur key-value mentah di database jika ingin diedit lagi dengan mudah.
+    // Untuk sekarang, kita asumsikan output_instructions_segment adalah teks yang akan diedit di textarea.
+    // Jika Anda menyimpan outputJsonFields di database, ambil dari sana.
+    // Jika tidak, kita mulai dengan array kosong atau coba parse dari full_prompt.
+    // Untuk kesederhanaan awal, kita mulai dengan array kosong jika diedit.
+    // Nanti bisa disempurnakan untuk mem-parse full_prompt_text_generated->output_instructions_segment
+    // atau lebih baik, simpan struktur outputJsonFields di database.
+    // Untuk sekarang, kita biarkan user mengisi ulang jika mode manual atau UI key-value.
+    return [{ key: '', value_description: '' }];
+});
+
 
 const form = useForm({
-    _method: 'PUT',
+    _method: 'PUT', // Untuk update
     configured_prompt_name: props.configuredPrompt?.configured_prompt_name || '',
     prompt_template_id: props.configuredPrompt?.prompt_template_id || null,
     description: props.configuredPrompt?.description || '',
     full_prompt_text_generated: props.configuredPrompt?.full_prompt_text_generated || '',
-
-    target_prompt_segment: '',
+    target_prompt_segment: '', // Akan diisi di onMounted jika mode manual
     condition_prompt_segment: '',
     label_guidance_segment: '',
-    output_instructions_segment: '',
-    outputJsonFieldsManual: reactive([{ key: '', value_description: '' }]),
+    output_instructions_segment: props.configuredPrompt?.full_prompt_text_generated ?
+        (parseFullPromptToSegments(props.configuredPrompt.full_prompt_text_generated).output || '{\n  "default_key": "default_value"\n}') :
+        '{\n  "default_key": "default_value"\n}', // Akan diisi dari UI key-value atau textarea
+    outputJsonFieldsManual: reactive(initialOutputJsonFields.value),
 
-    gen_temperature: initialGenConfig.value?.temperature || 0.4,
-    gen_max_output_tokens: initialGenConfig.value?.maxOutputTokens || 1024,
-    gen_top_k: initialGenConfig.value?.topK === 0 ? 0 : (initialGenConfig.value?.topK || 32),
-    gen_top_p: initialGenConfig.value?.topP === 0 ? 0 : (initialGenConfig.value?.topP || 1.0),
-    gen_stop_sequences_text: (initialGenConfig.value?.stopSequences || []).join(', '),
-    mappings: [],
+    // Inisialisasi field gen_* dari generation_config_final
+    gen_temperature: initialGenerationConfig.value?.temperature || 0.4,
+    gen_max_output_tokens: initialGenerationConfig.value?.maxOutputTokens || 1024,
+    gen_top_k: initialGenerationConfig.value?.topK === 0 ? 0 : (initialGenerationConfig.value?.topK || 32),
+    gen_top_p: initialGenerationConfig.value?.topP === 0 ? 0 : (initialGenerationConfig.value?.topP || 1.0),
+    gen_stop_sequences_text: (initialGenerationConfig.value?.stopSequences || []).join(', '),
+
+    mappings: [], // Akan diisi dari props.configuredPrompt.component_mappings
 });
 
 const selectedTemplateObject = ref(null);
@@ -91,129 +136,141 @@ const assembleFullPrompt = () => { let finalOutputInstructions = '';
 
             const isOutputPlaceholder = placeholder.toLowerCase().includes('output') || placeholder.toLowerCase().includes('format');
 
-            if (phData.type === 'component' && phData.value) {
-                const component = props.promptComponents.find(c => c.id === phData.value);
-                if (component) {
-                    replacementText = component.content;
-                }
-            } else if (phData.type === 'manual_textarea') { // Untuk placeholder biasa atau output format mode textarea
-                if (phData.manualText && phData.manualText.trim() !== '') {
+            if (isOutputPlaceholder) {
+                if (phData.type === 'component' && phData.value) {
+                    const component = props.promptComponents.find(c => c.id === phData.value);
+                    replacementText = component ? component.content : `{{${placeholder}}}`;
+                } else if (phData.type === 'manual_keyvalue') {
+                    replacementText = assembleOutputInstructionsSegmentFromKeyValue(phData.keyValueFields);
+                } else if (phData.type === 'manual_textarea' && phData.manualText.trim() !== '') {
                     replacementText = phData.manualText;
                 }
-            } else if (isOutputPlaceholder && phData.type === 'manual_keyvalue') {
-                // Rakit JSON dari keyValueFields untuk placeholder output ini
-                const tempJsonObj = {};
-                (phData.keyValueFields || []).forEach(f => {
-                    if (f.key && f.key.trim() !== '') {
-                        tempJsonObj[f.key.trim()] = f.value_description.trim() || `CONTOH_UNTUK_${f.key.trim().toUpperCase()}`;
-                    }
-                });
-                replacementText = JSON.stringify(tempJsonObj, null, 2);
+                finalOutputInstructions = replacementText; // Simpan untuk nanti jika perlu
+            } else { // Placeholder biasa
+                if (phData.type === 'component' && phData.value) {
+                    const component = props.promptComponents.find(c => c.id === phData.value);
+                    replacementText = component ? component.content : `{{${placeholder}}}`;
+                } else if (phData.type === 'manual' && phData.manualText.trim() !== '') { // Asumsi type 'manual' adalah textarea biasa
+                    replacementText = phData.manualText;
+                }
             }
-            // Jika setelah semua kondisi di atas replacementText masih placeholder aslinya,
-            // berarti belum diisi, biarkan placeholder untuk validasi di submitTestPrompt
             assembled = assembled.replace(new RegExp(`{{${placeholder}}}`, 'g'), replacementText);
         }
         form.full_prompt_text_generated = assembled;
-        // Update juga output_instructions_segment jika ada placeholder output yang diisi
-        // (ini mungkin perlu disesuaikan jika ada beberapa placeholder output)
-        const outputPlaceholderKey = Object.keys(placeholderValues).find(p => p.toLowerCase().includes('output') || p.toLowerCase().includes('format'));
-        if (outputPlaceholderKey) {
-            const outputPhData = placeholderValues[outputPlaceholderKey];
-            if (outputPhData.type === 'manual_keyvalue') {
-                 form.output_instructions_segment = assembleOutputInstructionsSegmentFromKeyValue(outputPhData.keyValueFields);
-            } else if (outputPhData.type === 'manual_textarea') {
-                 form.output_instructions_segment = outputPhData.manualText;
-            } else if (outputPhData.type === 'component' && outputPhData.value) {
-                const component = props.promptComponents.find(c => c.id === outputPhData.value);
-                form.output_instructions_segment = component ? component.content : '';
-            }
-        }
-
-    } else { // Mode manual global (tidak ada template dipilih)
+        // Jika template punya placeholder output, output_instructions_segment di form utama tidak relevan
+        form.output_instructions_segment = finalOutputInstructions; // Isi dengan hasil rakitan output
+    } else {
+        // Mode manual global
         form.output_instructions_segment = assembleOutputInstructionsSegmentFromKeyValue(form.outputJsonFieldsManual);
         form.full_prompt_text_generated = `Target: ${form.target_prompt_segment}\nCondition: ${form.condition_prompt_segment}\nLabel Guidance: ${form.label_guidance_segment}\nOutput Instructions: ${form.output_instructions_segment}`;
     }
-    console.log('[assembleFullPrompt] Generated:', form.full_prompt_text_generated);
 };
 
 // --- Inisialisasi State Form saat Komponen Dimuat ---
 onMounted(() => {
-    console.log('[Edit.vue onMounted] Initializing form with props.configuredPrompt:', JSON.parse(JSON.stringify(props.configuredPrompt)));
-
-    // 1. Set Template Dasar
-    if (form.prompt_template_id && props.promptTemplates) {
+    // Inisialisasi pilihan template
+    if (form.prompt_template_id) {
         selectedTemplateObject.value = props.promptTemplates.find(t => t.id === form.prompt_template_id);
     }
 
-    // 2. Isi placeholderValues dari component_mappings
-    // Ini akan mengisi dropdown 'Pilih Komponen' dan 'manualText' jika ada mapping
+    // Inisialisasi placeholderValues dari component_mappings yang ada
     if (selectedTemplateObject.value && selectedTemplateObject.value.placeholders_defined) {
         const mappings = props.configuredPrompt?.component_mappings || [];
         selectedTemplateObject.value.placeholders_defined.forEach(ph => {
             const existingMapping = mappings.find(m => m.placeholder_in_template === ph);
-            let phValue = {
-                type: 'manual_textarea', // Default ke manual jika tidak ada mapping komponen
-                value: null,
-                manualText: `{{${ph}}}`, // Default ke placeholder itu sendiri
-                keyValueFields: reactive([{key:'', value_description:''}])
-            };
+            let phValue = { type: 'manual_textarea', value: null, manualText: '', keyValueFields: reactive([{key:'', value_description:''}]) };
 
-            if (existingMapping && existingMapping.component) {
+            if (existingMapping) {
                 phValue.type = 'component';
                 phValue.value = existingMapping.prompt_component_id;
-                // manualText tidak diisi jika dari komponen, biarkan kosong atau ambil dari komponen jika perlu
-                phValue.manualText = '';
-            }
-            // Jika placeholder untuk output format dan tidak ada mapping komponen,
-            // kita perlu mengisi keyValueFields dari full_prompt_text_generated.
-            // Ini bagian yang rumit dan mungkin memerlukan parsing yang lebih baik.
-            // Untuk sekarang, kita default ke manual_textarea untuk output jika tidak ada mapping.
-            if ((ph.toLowerCase().includes('output') || ph.toLowerCase().includes('format')) && !existingMapping) {
-                phValue.type = 'manual_textarea'; // Atau default ke 'manual_keyvalue' jika ingin UI itu
-                phValue.manualText = "Isi JSON Output di sini atau pilih mode Key-Value";
-                // Anda bisa mencoba mem-parse bagian output dari full_prompt jika ada.
+            } else {
+                // Jika tidak ada mapping komponen, coba ekstrak teks manual dari full_prompt
+                // Ini bagian yang kompleks: mem-parse ulang full_prompt untuk mendapatkan teks manual per placeholder.
+                // Untuk sekarang, kita set manualText kosong atau default.
+                // Idealnya, jika tidak ada mapping, berarti teksnya adalah bagian dari full_prompt_text_generated
+                // yang tidak berasal dari komponen.
+                // Untuk kesederhanaan, kita biarkan user mengisi ulang jika tidak ada mapping komponen.
+                // Atau, jika placeholder output, kita bisa coba parse dari full_prompt_text_generated
+                if (ph.toLowerCase().includes('output') || ph.toLowerCase().includes('format')) {
+                    const outputJsonStr = parseFullPromptToSegments(form.full_prompt_text_generated).output;
+                    const parsedJson = safeJsonParse(outputJsonStr, {});
+                    const fields = [];
+                    for (const key in parsedJson) {
+                        fields.push({ key: key, value_description: String(parsedJson[key]) });
+                    }
+                    if (fields.length > 0) {
+                        phValue.type = 'manual_textarea'; // Atau 'manual_keyvalue' jika Anda bisa mem-parse balik ke fields
+                        // Coba isi manualText dari full_prompt jika mungkin (ini akan rumit)
+                        // Untuk sekarang, kita biarkan kosong jika tidak ada mapping
+                        phValue.keyValueFields = reactive(fields);
+                    } else {
+                        phValue.type = 'manual_textarea';
+                        phValue.manualText = outputJsonStr; // Tampilkan JSON string di textarea
+                    }
+                } else {
+                    // Untuk placeholder lain, mungkin lebih sulit mengekstrak teks manualnya
+                    // dari full_prompt jika tidak ada delimiter yang jelas.
+                    // Biarkan manualText kosong untuk diisi ulang.
+                    phValue.manualText = `{{${ph}}}`; // Default ke placeholder itu sendiri
+                }
             }
             placeholderValues[ph] = phValue;
         });
-    }
-
-    // 3. Isi segmen manual jika tidak ada template dipilih
-    // Dan coba isi outputJsonFieldsManual dari full_prompt jika tidak ada template
-    if (!form.prompt_template_id && form.full_prompt_text_generated) {
-        const lines = form.full_prompt_text_generated.split('\n');
-        let outputLines = [];
-        let capturingOutput = false;
-
-        lines.forEach(line => {
-            if (line.toLowerCase().startsWith('target:')) form.target_prompt_segment = line.substring(8).trim();
-            else if (line.toLowerCase().startsWith('condition:')) form.condition_prompt_segment = line.substring(11).trim();
-            else if (line.toLowerCase().startsWith('label guidance:')) form.label_guidance_segment = line.substring(16).trim();
-            else if (line.toLowerCase().startsWith('output instructions:')) {
-                capturingOutput = true;
-                outputLines.push(line.substring(20).trim());
-            } else if (capturingOutput) {
-                outputLines.push(line.trim());
-            }
-        });
-
-        const outputJsonStr = outputLines.join('\n').trim();
-        form.output_instructions_segment = outputJsonStr; // Simpan string JSON asli
-        const parsedOutput = safeJsonParse(outputJsonStr, {});
+    } else if (!form.prompt_template_id && form.full_prompt_text_generated) {
+        // Mode manual global, isi segmen dari full_prompt
+        const segments = parseFullPromptToSegments(form.full_prompt_text_generated);
+        form.target_prompt_segment = segments.target;
+        form.condition_prompt_segment = segments.condition;
+        form.label_guidance_segment = segments.labels;
+        // Untuk output_instructions_segment, isi outputJsonFieldsManual
+        const parsedOutput = safeJsonParse(segments.output, {});
         const fields = [];
-        if (parsedOutput && typeof parsedOutput === 'object' && !Array.isArray(parsedOutput)) {
-            for (const key in parsedOutput) {
-                fields.push({ key: key, value_description: String(parsedOutput[key]) });
-            }
+        for (const key in parsedOutput) {
+            fields.push({ key: key, value_description: String(parsedOutput[key]) });
         }
         if (fields.length > 0) {
             form.outputJsonFieldsManual = reactive(fields);
-        } else {
-            form.outputJsonFieldsManual = reactive([{key:'', value_description:''}]);
+        } else if (segments.output) { // Jika tidak bisa parse tapi ada teks
+             form.output_instructions_segment = segments.output; // fallback ke textarea jika parsing gagal
+             // Mungkin perlu state tambahan untuk mode input outputJsonFieldsManual
         }
     }
-    assembleFullPrompt(); // Panggil untuk memastikan preview awal benar
+    assembleFullPrompt(); // Panggil untuk memastikan preview awal benar setelah semua inisialisasi
 });
+
+//     // Jika tidak ada template dipilih (mode manual), isi segmen dari full_prompt (perlu parsing)
+//     // atau dari field segmen jika Anda menyimpannya terpisah di backend (saat ini tidak)
+//     if (!form.prompt_template_id && form.full_prompt_text_generated) {
+//         // Ini juga kompleks: mem-parse full_prompt_text_generated kembali ke segmen-segmen.
+//         // Untuk sekarang, kita biarkan field segmen diisi manual oleh user jika mereka mau mengubah.
+//         // Atau, Anda bisa menampilkan full_prompt_text_generated di satu textarea besar untuk diedit.
+//         // Untuk UI yang konsisten, kita perlu cara mengisi form.xxx_prompt_segment
+//         // dari props.configuredPrompt.full_prompt_text_generated jika tidak ada template.
+//         // Untuk awal, kita biarkan kosong dan admin bisa copy-paste dari preview full_prompt
+//         // atau kita bisa coba parsing sederhana:
+//         const lines = form.full_prompt_text_generated.split('\n');
+//         lines.forEach(line => {
+//             if (line.startsWith('Target:')) form.target_prompt_segment = line.substring(8).trim();
+//             else if (line.startsWith('Condition:')) form.condition_prompt_segment = line.substring(11).trim();
+//             else if (line.startsWith('Label Guidance:')) form.label_guidance_segment = line.substring(16).trim();
+//             else if (line.startsWith('Output Instructions:')) {
+//                 // Ini adalah JSON string, coba isi UI Key-Value jika bisa di-parse
+//                 const outputJsonStr = line.substring(20).trim();
+//                 const parsedOutput = safeJsonParse(outputJsonStr, {});
+//                 const fields = [];
+//                 for (const key in parsedOutput) {
+//                     fields.push({ key: key, value_description: String(parsedOutput[key]) });
+//                 }
+//                 if (fields.length > 0) {
+//                     form.outputJsonFieldsManual = reactive(fields);
+//                 }
+//                  form.output_instructions_segment = outputJsonStr; // Simpan juga string aslinya
+//             }
+//         });
+//     }
+//     assembleFullPrompt(); // Panggil untuk memastikan preview awal benar
+// });
+
 
 // --- Watchers (SAMA SEPERTI CREATE.VUE, pastikan memanggil assembleFullPrompt) ---
 watch(() => form.prompt_template_id, (newTemplateId) => { Object.keys(placeholderValues).forEach(key => delete placeholderValues[key]);
@@ -221,20 +278,15 @@ watch(() => form.prompt_template_id, (newTemplateId) => { Object.keys(placeholde
         selectedTemplateObject.value = props.promptTemplates.find(t => t.id === newTemplateId);
         if (selectedTemplateObject.value && selectedTemplateObject.value.placeholders_defined) {
             selectedTemplateObject.value.placeholders_defined.forEach(ph => {
-                let defaultPhValue = {
-                    type: 'component', // Default awal
-                    value: null,
-                    manualText: '', // Inisialisasi manualText
-                    keyValueFields: reactive([{key:'', value_description:''}]) // Selalu inisialisasi ini
-                };
-                // if (ph.toLowerCase().includes('output') || ph.toLowerCase().includes('format')) {
-                //     defaultPhValue = {
-                //         type: 'component', // Default ke komponen
-                //         value: null,
-                //         manualText: '{\n  "default_key": "default_value"\n}',
-                //         keyValueFields: reactive([{ key: '', value_description: '' }]),
-                //     };
-                // }
+                let defaultPhValue = { type: 'component', value: null, manualText: '' };
+                if (ph.toLowerCase().includes('output') || ph.toLowerCase().includes('format')) {
+                    defaultPhValue = {
+                        type: 'component', // Default ke komponen
+                        value: null,
+                        manualText: '{\n  "default_key": "default_value"\n}',
+                        keyValueFields: reactive([{ key: '', value_description: '' }]),
+                    };
+                }
                 placeholderValues[ph] = defaultPhValue;
             });
         }
@@ -265,7 +317,6 @@ const addFieldTo = (fieldsArray) => { fieldsArray.push({ key: '', value_descript
 const removeFieldFrom = (fieldsArray, index) => { fieldsArray.splice(index, 1); assembleFullPrompt(); };
 
 // --- Submit Update ---
-// --- Submit Update ---
 const submitUpdateConfiguredPrompt = () => {
     assembleFullPrompt();
     const finalGenerationConfigJson = assembleGenerationConfigJson();
@@ -282,34 +333,22 @@ const submitUpdateConfiguredPrompt = () => {
         }
     }
 
-    // Kirim semua data yang relevan untuk update
     router.put(route('admin.configured-prompts.update', props.configuredPrompt.id), {
         configured_prompt_name: form.configured_prompt_name,
         prompt_template_id: form.prompt_template_id,
         description: form.description,
-        // full_prompt_text_generated: form.full_prompt_text_generated,
-        // generation_config_final_json: finalGenerationConfigJson,
-        // mappings: mappingsForBackend,
-        // Jika Anda menyimpan segmen manual secara terpisah di DB, kirim juga:
+        full_prompt_text_generated: form.full_prompt_text_generated,
+        generation_config_final_json: finalGenerationConfigJson,
+        mappings: mappingsForBackend,
+        // Kirim juga field segmen manual jika tidak ada template,
+        // atau jika Anda ingin backend merakit ulang full_prompt_text_generated
         target_prompt_segment: form.target_prompt_segment,
         condition_prompt_segment: form.condition_prompt_segment,
         label_guidance_segment: form.label_guidance_segment,
-        output_instructions_segment: form.output_instructions_segment, // Hasil rakitan dari UI JSON Dinamisdata: {
-            ...form.data(), // Ambil semua data form yang sudah ada
-            full_prompt_text_generated: form.full_prompt_text_generated, // Pastikan ini yang terbaru
-            generation_config_final_json: finalGenerationConfigJson, // Kirim JSON string
-            mappings: mappingsForBackend, // Kirim mappings yang sudah dirakit
-        },
-        {
+        output_instructions_segment: form.output_instructions_segment, // Hasil rakitan dari UI JSON Dinamis
+    }, {
         preserveScroll: true,
         onError: (errors) => { console.error("Error updating configured prompt:", errors); },
-        onSuccess: () => {
-            // Reset field password jika ada di form edit
-            // form.password = '';
-            // form.password_confirmation = '';
-            // form.avatar = null;
-            // avatarPreview.value = null;
-        }
     });
 };
 

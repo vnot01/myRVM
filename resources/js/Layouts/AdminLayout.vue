@@ -130,9 +130,12 @@ watch(() => page.props.flash, (newFlashValue) => {
                         <span class="border-green-300 dark:border-green-600 animate-pulse text-green-700 dark:text-green-400 transition duration-75">Manajemen Prompt AI</span>
                         
                     </NavLink>
-                    <!-- <NavLink :href="route('admin.prompt-templates.index')" :active="page.url.startsWith('/admin/prompt-templates')"> -->
-                        <!-- Manajemen Prompt AI -->
-                    <!-- </NavLink> -->
+                    <NavLink :href="route('admin.prompt-templates.index')" :active="page.url.startsWith('/admin/prompt-templates-manage')">
+                        Pustaka Template Prompt
+                    </NavLink>
+                    <NavLink :href="route('admin.prompt-components.index')" :active="page.url.startsWith('/admin/prompt-components-manage')">
+                        Pustaka Komponen Prompt
+                    </NavLink>
                 </nav>
             </aside>
 

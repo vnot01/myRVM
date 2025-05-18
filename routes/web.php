@@ -9,6 +9,8 @@ use App\Http\Controllers\Admin\RvmManagementController; // RVM Management
 use App\Http\Controllers\Admin\UserManagementController; // Users Management
 use App\Http\Controllers\Admin\PromptTemplateController; // My VisionPrompt
 use App\Http\Controllers\Admin\ConfiguredPromptController; // Configurasi Prompt
+use App\Http\Controllers\Admin\PromptComponentController; // Komponen Prompt
+
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -56,10 +58,12 @@ Route::middleware(['auth', 'verified', 'role:Admin,Operator'])
         Route::resource('/configured-prompts', ConfiguredPromptController::class)->except(['show']);
         Route::post('/configured-prompts/{configuredPrompt}/activate', [ConfiguredPromptController::class, 'activate'])->name('configured-prompts.activate'); // Perlu metode activate
         Route::post('/configured-prompts/test-prompt', [ConfiguredPromptController::class, 'testPrompt'])->name('configured-prompts.test'); // Perlu metode testPrompt
-        // Route::post('/prompt-templates/test-prompt', [PromptTemplateController::class, 'testPrompt'])->name('prompt-templates.test');
-        // Route::resource('/prompt-templates', PromptTemplateController::class)->except(['show']);
-        // // Kita akan tambahkan rute 'activate' secara terpisah nanti
-        // Route::post('/prompt-templates/{promptTemplate}/activate', [PromptTemplateController::class, 'activate'])->name('prompt-templates.activate');
+        
+
+        // Route::get('/prompt-templates-manage', [PromptTemplateController::class, 'index'])->name('prompt-templates.index')->middleware('role:Admin');
+        // Route::get('/prompt-templates-manage/{templates}/edit', [PromptTemplateController::class, 'edit'])->name('prompt-templates.edit')->middleware('role:Admin');
+        Route::resource('/prompt-components-manage', PromptComponentController::class)->except(['show'])->names('prompt-components')->middleware('role:Admin');
+        Route::resource('/prompt-templates-manage', PromptTemplateController::class)->except(['show'])->names('prompt-templates')->middleware('role:Admin');
         // --- AKHIR RUTE BARU ---
         // ... rute CRUD user lainnya ...
     });

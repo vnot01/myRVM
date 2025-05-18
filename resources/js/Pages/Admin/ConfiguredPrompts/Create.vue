@@ -1,7 +1,7 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
-import { ref, watch, computed, reactive } from 'vue';
+import { ref, watch, computed, reactive, nextTick } from 'vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import TextareaInput from '@/Components/TextareaInput.vue';
@@ -18,16 +18,16 @@ const props = defineProps({
 });
 
 const form = useForm({
-    outputJsonFields: reactive([{ key: '', value_description: '' }]),
-    outputJsonFieldsManual: reactive([{ key: '', value_description: '' }]), // Untuk UI Key-Value di mode manual global
     configured_prompt_name: '',
     prompt_template_id: null,
     description: '',
-    full_prompt_text_generated: '',
+    full_prompt_text_generated: '', // Akan diisi oleh rakitan
     target_prompt_segment: '',
     condition_prompt_segment: '',
     label_guidance_segment: '',
     output_instructions_segment: '',
+    outputJsonFieldsManual: reactive([{ key: '', value_description: '' }]), // Untuk UI Key-Value di mode manual global
+    outputJsonFields: reactive([{ key: '', value_description: '' }]),
     mappings: [],
     gen_temperature: 0.4,
     gen_max_output_tokens: 1024,
@@ -39,18 +39,6 @@ const form = useForm({
 const selectedTemplateObject = ref(null);
 const placeholderValues = reactive({}); // { placeholderName: { type: 'component'/'manual', value: componentId/null, manualText: '' } }
 const showAdvancedGenerationConfig = ref(false);
-const assembleOutputInstructionsSegmentFromKeyValue = (fieldsArray) => {
-    if (!fieldsArray || fieldsArray.length === 0 || (fieldsArray.length === 1 && !fieldsArray[0].key && !fieldsArray[0].value_description)) {
-        return '{\n  "item_type": "LABEL_DARI_DAFTAR",\n  "is_valid": true_atau_false\n}'; // Default
-    }
-    const jsonObject = {};
-    fieldsArray.forEach(field => {
-        if (field.key && field.key.trim() !== '') {
-            jsonObject[field.key.trim()] = field.value_description.trim() || `CONTOH_UNTUK_${field.key.trim().toUpperCase()}`;
-        }
-    });
-    return JSON.stringify(jsonObject, null, 2);
-};
 
 // Fungsi untuk merakit generation_config menjadi JSON string
 const assembleGenerationConfigJson = () => {
@@ -65,85 +53,54 @@ const assembleGenerationConfigJson = () => {
     }
     return JSON.stringify(config, null, 2);
 };
-// Watch perubahan pada field gen_* untuk mengupdate preview JSON jika perlu,
-// atau panggil assembleGenerationConfigJson() sebelum submitTestPrompt dan submitCreateConfiguredPrompt
-watch(() => [form.gen_temperature, form.gen_max_output_tokens, form.gen_top_k, form.gen_top_p, form.gen_stop_sequences_text], () => {
-    // Jika Anda ingin live update field form.generation_config_final_json (jika masih ada)
-    // form.generation_config_final_json = assembleGenerationConfigJson();
-    // Atau panggil assembleFullPrompt() jika generation_config adalah bagian dari full prompt
-}, { deep: true });
 
-// const addOutputJsonField = () => {
-//     form.outputJsonFields.push({ key: '', value_description: '' });
-//     assembleFullPrompt(); // Panggil juga saat struktur berubah
-// };
-
-// const removeOutputJsonField = (index) => {
-//     form.outputJsonFields.splice(index, 1);
-//     assembleFullPrompt(); // Panggil juga saat struktur berubah
-// };
-
-// Fungsi untuk merakit output_instructions_segment dari outputJsonFields
-const assembleOutputInstructionsSegment = () => {
-    if (form.outputJsonFields.length === 0 || (form.outputJsonFields.length === 1 && !form.outputJsonFields[0].key && !form.outputJsonFields[0].value_description) ) {
-        return '{\n  "item_type": "LABEL_DARI_DAFTAR",\n  "is_valid": true_atau_false\n}'; // Contoh default jika kosong
+const assembleOutputInstructionsSegmentFromKeyValue = (fieldsArray) => {
+    if (!fieldsArray || fieldsArray.length === 0 || (fieldsArray.length === 1 && !fieldsArray[0].key && !fieldsArray[0].value_description)) {
+        return '{\n  "item_type": "LABEL_DARI_DAFTAR",\n  "is_valid": true_atau_false\n}'; // Default
     }
     const jsonObject = {};
-    form.outputJsonFields.forEach(field => {
-        if (field.key.trim() !== '') {
-            // Untuk value, kita simpan deskripsinya, bukan nilai aktual boolean/string
-            jsonObject[field.key.trim()] = field.value_description.trim() || `CONTOH_VALUE_UNTUK_${field.key.trim().toUpperCase()}`;
+    fieldsArray.forEach(field => {
+        if (field.key && field.key.trim() !== '') {
+            jsonObject[field.key.trim()] = field.value_description.trim() || `CONTOH_UNTUK_${field.key.trim().toUpperCase()}`;
         }
     });
-    return JSON.stringify(jsonObject, null, 2); // Format dengan indentasi
+    return JSON.stringify(jsonObject, null, 2);
 };
 
 // --- Perakitan Prompt ---
 const assembleFullPrompt = () => {
-    let finalOutputInstructions = '';
-
+    let finalOutputSegmentForTemplate = ''; // Untuk menyimpan hasil rakitan output jika template dipakai
     if (selectedTemplateObject.value && selectedTemplateObject.value.template_string) {
         let assembled = selectedTemplateObject.value.template_string;
         for (const placeholder in placeholderValues) {
             const phData = placeholderValues[placeholder];
-            let replacementText = `{{${placeholder}}}`;
+            let replacementText = `{{${placeholder}}}`; // Default
 
             const isOutputPlaceholder = placeholder.toLowerCase().includes('output') || placeholder.toLowerCase().includes('format');
 
+            if (phData.type === 'component' && phData.value) {
+                const component = props.promptComponents.find(c => c.id === phData.value);
+                replacementText = component ? component.content : `{{${placeholder}}}`;
+            } else if (phData.type === 'manual_textarea') {
+                replacementText = (phData.manualText && phData.manualText.trim() !== '') ? phData.manualText : `{{${placeholder}}}`;
+            } else if (isOutputPlaceholder && phData.type === 'manual_keyvalue') {
+                replacementText = assembleOutputInstructionsSegmentFromKeyValue(phData.keyValueFields);
+            }
+            
             if (isOutputPlaceholder) {
-                if (phData.type === 'component' && phData.value) {
-                    const component = props.promptComponents.find(c => c.id === phData.value);
-                    replacementText = component ? component.content : `{{${placeholder}}}`;
-                } else if (phData.type === 'manual_keyvalue') {
-                    replacementText = assembleOutputInstructionsSegmentFromKeyValue(phData.keyValueFields);
-                } else if (phData.type === 'manual_textarea' && phData.manualText.trim() !== '') {
-                    replacementText = phData.manualText;
-                }
-                finalOutputInstructions = replacementText; // Simpan untuk nanti jika perlu
-            } else { // Placeholder biasa
-                if (phData.type === 'component' && phData.value) {
-                    const component = props.promptComponents.find(c => c.id === phData.value);
-                    replacementText = component ? component.content : `{{${placeholder}}}`;
-                } else if (phData.type === 'manual' && phData.manualText.trim() !== '') { // Asumsi type 'manual' adalah textarea biasa
-                    replacementText = phData.manualText;
-                }
+                finalOutputSegmentForTemplate = replacementText; // Simpan ini
             }
             assembled = assembled.replace(new RegExp(`{{${placeholder}}}`, 'g'), replacementText);
         }
         form.full_prompt_text_generated = assembled;
-        // Jika template punya placeholder output, output_instructions_segment di form utama tidak relevan
-        form.output_instructions_segment = finalOutputInstructions; // Isi dengan hasil rakitan output
+        form.output_instructions_segment = finalOutputSegmentForTemplate; // Isi dari placeholder output
     } else {
         // Mode manual global
         form.output_instructions_segment = assembleOutputInstructionsSegmentFromKeyValue(form.outputJsonFieldsManual);
         form.full_prompt_text_generated = `Target: ${form.target_prompt_segment}\nCondition: ${form.condition_prompt_segment}\nLabel Guidance: ${form.label_guidance_segment}\nOutput Instructions: ${form.output_instructions_segment}`;
     }
+    console.log('[assembleFullPrompt] Generated:', form.full_prompt_text_generated);
 };
-
-// Watch outputJsonFields juga
-watch(form.outputJsonFields, () => {
-    assembleFullPrompt();
-}, { deep: true });
 
 // immediate true agar assembleFullPrompt dipanggil saat load awal jika ada template terpilih
 watch(() => form.prompt_template_id, (newTemplateId) => {
@@ -152,16 +109,13 @@ watch(() => form.prompt_template_id, (newTemplateId) => {
         selectedTemplateObject.value = props.promptTemplates.find(t => t.id === newTemplateId);
         if (selectedTemplateObject.value && selectedTemplateObject.value.placeholders_defined) {
             selectedTemplateObject.value.placeholders_defined.forEach(ph => {
-                let defaultPhValue = { type: 'component', value: null, manualText: '' };
-                if (ph.toLowerCase().includes('output') || ph.toLowerCase().includes('format')) {
-                    defaultPhValue = {
-                        type: 'component', // Default ke komponen
-                        value: null,
-                        manualText: '{\n  "default_key": "default_value"\n}',
-                        keyValueFields: reactive([{ key: '', value_description: '' }]),
-                    };
-                }
-                placeholderValues[ph] = defaultPhValue;
+                const isOutputPh = ph.toLowerCase().includes('output') || ph.toLowerCase().includes('format');
+                placeholderValues[ph] = {
+                    type: 'component', // Default ke komponen
+                    value: null,
+                    manualText: isOutputPh ? '{\n  "default_key": "default_value"\n}' : '',
+                    keyValueFields: reactive([{ key: '', value_description: '' }]),
+                };
             });
         }
     } else {
@@ -171,23 +125,16 @@ watch(() => form.prompt_template_id, (newTemplateId) => {
 }, { immediate: true });
 
 watch(placeholderValues, assembleFullPrompt, { deep: true });
-// Watch segmen manual juga untuk merakit ulang jika tidak ada template dipilih
 
+// Watch segmen manual juga untuk merakit ulang jika tidak ada template dipilih
 watch(() => [form.target_prompt_segment, form.condition_prompt_segment, form.label_guidance_segment], () => {
     if (!form.prompt_template_id) { assembleFullPrompt(); }
 }, { deep: true });
 
 // Watch outputJsonFieldsManual untuk mode manual global
-watch(form.outputJsonFieldsManual, () => { 
+watch(form.outputJsonFieldsManual, () => {
     if (!form.prompt_template_id) { assembleFullPrompt(); }
 }, { deep: true });
-
-// Fungsi untuk UI JSON Dinamis (baik global maupun per placeholder)
-const addFieldTo = (fieldsArray) => { fieldsArray.push({ key: '', value_description: '' }); assembleFullPrompt(); };
-
-const removeFieldFrom = (fieldsArray, index) => { fieldsArray.splice(index, 1); assembleFullPrompt(); };
-
-
 const relevantComponents = (placeholderName) => {
     let typeToFilter = placeholderName.toLowerCase();
     if (typeToFilter.includes('target')) typeToFilter = 'target_description';
@@ -196,7 +143,22 @@ const relevantComponents = (placeholderName) => {
     else if (typeToFilter.includes('output') || typeToFilter.includes('format')) typeToFilter = 'output_format_definition';
     return props.promptComponents.filter(c => c.component_type === typeToFilter);
 };
-
+// Fungsi untuk UI JSON Dinamis (baik global maupun per placeholder)
+const addFieldTo = (fieldsArray) => { fieldsArray.push({ key: '', value_description: '' }); assembleFullPrompt(); };
+const removeFieldFrom = (fieldsArray, index) => { fieldsArray.splice(index, 1); assembleFullPrompt(); };
+// Fungsi spesifik untuk placeholder key-value
+const addPhKeyValueField = (placeholderName) => {
+    if (placeholderValues[placeholderName] && placeholderValues[placeholderName].keyValueFields) {
+        placeholderValues[placeholderName].keyValueFields.push({ key: '', value_description: '' });
+        assembleFullPrompt();
+    }
+};
+const removePhKeyValueField = (placeholderName, index) => {
+    if (placeholderValues[placeholderName] && placeholderValues[placeholderName].keyValueFields) {
+        placeholderValues[placeholderName].keyValueFields.splice(index, 1);
+        assembleFullPrompt();
+    }
+};
 const submitCreateConfiguredPrompt = () => {
     assembleFullPrompt();
     const finalGenerationConfigJson = assembleGenerationConfigJson();
@@ -227,14 +189,12 @@ const submitCreateConfiguredPrompt = () => {
         onError: (errors) => { console.error("Error creating configured prompt:", errors); },
     });
 };
-
 // --- Logika untuk Test Prompt Cepat ---
 const testImageFile = ref(null);
 const testImagePreview = ref(null);
 const testResult = ref(null);
 const isTestingPrompt = ref(false);
 const testError = ref(null);
-
 const handleTestImageChange = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -247,11 +207,9 @@ const handleTestImageChange = (event) => {
         testImageFile.value = null; testImagePreview.value = null;
     }
 };
-
 const submitTestPrompt = async () => {
     assembleFullPrompt(); // Merakit form.full_prompt_text_generated
     const currentGeneratedConfigJson = assembleGenerationConfigJson(); // Merakit config JSON
-
     if (!testImageFile.value) {
         alert('Silakan pilih gambar contoh untuk pengujian.');
         return;
@@ -261,16 +219,13 @@ const submitTestPrompt = async () => {
         alert('Harap lengkapi semua placeholder di prompt atau isi segmen prompt sebelum menguji.');
         return;
     }
-
     isTestingPrompt.value = true;
     testResult.value = null;
     testError.value = null;
-
     const formDataTest = new FormData();
     formDataTest.append('image', testImageFile.value);
     formDataTest.append('full_prompt', form.full_prompt_text_generated); // Kirim hasil rakitan
     formDataTest.append('generation_config_json', currentGeneratedConfigJson); // Kirim hasil rakitan
-
     try {
         const response = await axios.post(route('admin.configured-prompts.test'), formDataTest, {
             headers: { 'Content-Type': 'multipart/form-data' }
@@ -293,6 +248,43 @@ const submitTestPrompt = async () => {
     }
 };
 
+// // Watch perubahan pada field gen_* untuk mengupdate preview JSON jika perlu,
+// // atau panggil assembleGenerationConfigJson() sebelum submitTestPrompt dan submitCreateConfiguredPrompt
+// watch(() => [form.gen_temperature, form.gen_max_output_tokens, form.gen_top_k, form.gen_top_p, form.gen_stop_sequences_text], () => {
+//     // Jika Anda ingin live update field form.generation_config_final_json (jika masih ada)
+//     // form.generation_config_final_json = assembleGenerationConfigJson();
+//     // Atau panggil assembleFullPrompt() jika generation_config adalah bagian dari full prompt
+// }, { deep: true });
+
+// // const addOutputJsonField = () => {
+// //     form.outputJsonFields.push({ key: '', value_description: '' });
+// //     assembleFullPrompt(); // Panggil juga saat struktur berubah
+// // };
+
+// // const removeOutputJsonField = (index) => {
+// //     form.outputJsonFields.splice(index, 1);
+// //     assembleFullPrompt(); // Panggil juga saat struktur berubah
+// // };
+
+// // Fungsi untuk merakit output_instructions_segment dari outputJsonFields
+// const assembleOutputInstructionsSegment = () => {
+//     if (form.outputJsonFields.length === 0 || (form.outputJsonFields.length === 1 && !form.outputJsonFields[0].key && !form.outputJsonFields[0].value_description) ) {
+//         return '{\n  "item_type": "LABEL_DARI_DAFTAR",\n  "is_valid": true_atau_false\n}'; // Contoh default jika kosong
+//     }
+//     const jsonObject = {};
+//     form.outputJsonFields.forEach(field => {
+//         if (field.key.trim() !== '') {
+//             // Untuk value, kita simpan deskripsinya, bukan nilai aktual boolean/string
+//             jsonObject[field.key.trim()] = field.value_description.trim() || `CONTOH_VALUE_UNTUK_${field.key.trim().toUpperCase()}`;
+//         }
+//     });
+//     return JSON.stringify(jsonObject, null, 2); // Format dengan indentasi
+// };
+
+// // Watch outputJsonFields juga
+// watch(form.outputJsonFields, () => {
+//     assembleFullPrompt();
+// }, { deep: true });
 
 </script>
 
