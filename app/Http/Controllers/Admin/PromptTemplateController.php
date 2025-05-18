@@ -16,12 +16,12 @@ use Illuminate\Support\Str;
 
 class PromptTemplateController extends Controller
 {
-    protected GeminiVisionService $geminiService; // Inject service
+    // protected GeminiVisionService $geminiService; // Inject service
 
-    public function __construct(GeminiVisionService $geminiService)
-    {
-        $this->geminiService = $geminiService;
-    }
+    // public function __construct(GeminiVisionService $geminiService)
+    // {
+    //     $this->geminiService = $geminiService;
+    // }
 
     // // ... (metode index, create, store, edit, update, destroy Anda) ...
 
@@ -189,21 +189,20 @@ class PromptTemplateController extends Controller
         //     abort(403, 'ANDA TIDAK DIIZINKAN MENGAKSES HALAMAN INI.');
         // }
 
-        $searchTerm = $request->query('search');
+       $searchTerm = $request->query('search');
 
         $promptTemplates = PromptTemplate::query()
             ->when($searchTerm, function ($query, $search) {
-                $query->where('name', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
+                $query->where('template_name', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%");
             })
-            ->orderBy('is_active', 'desc')
-            ->orderBy('name', 'asc')
-            ->paginate(10)
-            ->withQueryString();
+            ->orderBy('template_name', 'asc') // Urutkan berdasarkan nama template
+            ->paginate(10) // Paginasi, misalnya 10 per halaman
+            ->withQueryString(); // Agar parameter search tetap ada di link paginasi
 
         return Inertia::render('Admin/Prompts/Index', [
             'promptTemplates' => $promptTemplates,
-            'filters' => $request->only(['search']),
+            'filters' => $request->only(['search']), // Kirim filter aktif ke Vue
         ]);
     }
 
@@ -214,7 +213,8 @@ class PromptTemplateController extends Controller
     {
         //
         return Inertia::render('Admin/Prompts/Create', [
-            // Kirim data tambahan jika perlu untuk form create
+            // Kirim data yang dibutuhkan untuk form create, misalnya daftar placeholder umum
+            'commonPlaceholders' => ['{{target_desc}}', '{{item_condition}}', '{{item_labels}}', '{{output_json_format}}'],
         ]);
     }
 
@@ -290,79 +290,79 @@ class PromptTemplateController extends Controller
     }
 
 
-    /**
-     * Test a given prompt configuration with an image.
-     */
-    public function testPrompt(Request $request)
-    {
-        // Otorisasi sudah ditangani oleh middleware rute 'role:Admin'
-        // if (!Auth::check() || Auth::user()->role !== 'Admin') { // Cek tambahan jika middleware tidak cukup spesifik
-        //     return response()->json(['error' => 'Unauthorized or insufficient permissions.'], 403);
-        // }
+    // /**
+    //  * Test a given prompt configuration with an image.
+    //  */
+    // public function testPrompt(Request $request)
+    // {
+    //     // Otorisasi sudah ditangani oleh middleware rute 'role:Admin'
+    //     // if (!Auth::check() || Auth::user()->role !== 'Admin') { // Cek tambahan jika middleware tidak cukup spesifik
+    //     //     return response()->json(['error' => 'Unauthorized or insufficient permissions.'], 403);
+    //     // }
 
-        $validator = Validator::make($request->all(), [
-            'image' => 'required|image|mimes:jpeg,png,jpg|max:5120',
-            'target_prompt' => 'required|string',
-            'condition_prompt' => 'required|string',
-            'label_guidance' => 'required|string',
-            'output_instructions' => 'required|string',
-            'generation_config_json' => ['nullable', 'json'],
-        ]);
+    //     $validator = Validator::make($request->all(), [
+    //         'image' => 'required|image|mimes:jpeg,png,jpg|max:5120',
+    //         'target_prompt' => 'required|string',
+    //         'condition_prompt' => 'required|string',
+    //         'label_guidance' => 'required|string',
+    //         'output_instructions' => 'required|string',
+    //         'generation_config_json' => ['nullable', 'json'],
+    //     ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
+    //     if ($validator->fails()) {
+    //         return response()->json(['errors' => $validator->errors()], 422);
+    //     }
 
-        $imageFile = $request->file('image');
-        $targetPrompt = $request->input('target_prompt');
-        $conditionPrompt = $request->input('condition_prompt');
-        $labelGuidance = $request->input('label_guidance');
-        $outputInstructions = $request->input('output_instructions');
-        $generationConfigJson = $request->input('generation_config_json');
-        $generationConfig = null;
+    //     $imageFile = $request->file('image');
+    //     $targetPrompt = $request->input('target_prompt');
+    //     $conditionPrompt = $request->input('condition_prompt');
+    //     $labelGuidance = $request->input('label_guidance');
+    //     $outputInstructions = $request->input('output_instructions');
+    //     $generationConfigJson = $request->input('generation_config_json');
+    //     $generationConfig = null;
 
-        if ($generationConfigJson) {
-            $decodedConfig = json_decode($generationConfigJson, true);
-            if (json_last_error() === JSON_ERROR_NONE && is_array($decodedConfig)) {
-                $generationConfig = $decodedConfig;
-            } else {
-                Log::warning('TestPrompt: Invalid JSON for generation_config', ['json_string' => $generationConfigJson]);
-            }
-        }
+    //     if ($generationConfigJson) {
+    //         $decodedConfig = json_decode($generationConfigJson, true);
+    //         if (json_last_error() === JSON_ERROR_NONE && is_array($decodedConfig)) {
+    //             $generationConfig = $decodedConfig;
+    //         } else {
+    //             Log::warning('TestPrompt: Invalid JSON for generation_config', ['json_string' => $generationConfigJson]);
+    //         }
+    //     }
 
-        $fullPrompt = "Target: " . $targetPrompt . "\n" .
-            "Condition: " . $conditionPrompt . "\n" .
-            "Label Guidance: " . $labelGuidance . "\n" .
-            "Output Instructions: " . $outputInstructions;
+    //     $fullPrompt = "Target: " . $targetPrompt . "\n" .
+    //         "Condition: " . $conditionPrompt . "\n" .
+    //         "Label Guidance: " . $labelGuidance . "\n" .
+    //         "Output Instructions: " . $outputInstructions;
 
-        Log::info('TestPrompt: Testing with custom prompt and config.', [ /* ... */]);
+    //     Log::info('TestPrompt: Testing with custom prompt and config.', [ /* ... */]);
 
-        try {
-            $results = $this->geminiService->analyzeWithCustomPromptAndConfig(
-                $imageFile,
-                $fullPrompt,
-                $generationConfig
-            );
+    //     try {
+    //         $results = $this->geminiService->analyzeWithCustomPromptAndConfig(
+    //             $imageFile,
+    //             $fullPrompt,
+    //             $generationConfig
+    //         );
 
-            // Cek apakah ada error dari service (misalnya, cURL error atau API error)
-            if (isset($results['curl_error']) && $results['curl_error']) {
-                return response()->json(['error' => 'Failed to call Gemini API: ' . $results['curl_error']], 500);
-            }
-            if ($results['http_code'] !== 200) {
-                return response()->json(['error' => 'Gemini API returned error: ' . $results['http_code'], 'details' => $results['parsed_data'] ?? $results['raw_text']], $results['http_code']);
-            }
+    //         // Cek apakah ada error dari service (misalnya, cURL error atau API error)
+    //         if (isset($results['curl_error']) && $results['curl_error']) {
+    //             return response()->json(['error' => 'Failed to call Gemini API: ' . $results['curl_error']], 500);
+    //         }
+    //         if ($results['http_code'] !== 200) {
+    //             return response()->json(['error' => 'Gemini API returned error: ' . $results['http_code'], 'details' => $results['parsed_data'] ?? $results['raw_text']], $results['http_code']);
+    //         }
 
 
-            return response()->json([
-                'success' => true,
-                'gemini_raw_response_text' => $results['raw_text'],
-                'parsed_results' => $results['parsed_data'],
-                'full_prompt_sent' => $fullPrompt,
-                'generation_config_used' => $generationConfig
-            ]);
-        } catch (\Exception $e) {
-            Log::error('TestPrompt: Exception: ' . $e->getMessage(), ['trace' => Str::limit($e->getTraceAsString(), 500)]);
-            return response()->json(['error' => 'An internal server error occurred: ' . $e->getMessage()], 500);
-        }
-    }
+    //         return response()->json([
+    //             'success' => true,
+    //             'gemini_raw_response_text' => $results['raw_text'],
+    //             'parsed_results' => $results['parsed_data'],
+    //             'full_prompt_sent' => $fullPrompt,
+    //             'generation_config_used' => $generationConfig
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         Log::error('TestPrompt: Exception: ' . $e->getMessage(), ['trace' => Str::limit($e->getTraceAsString(), 500)]);
+    //         return response()->json(['error' => 'An internal server error occurred: ' . $e->getMessage()], 500);
+    //     }
+    // }
 }

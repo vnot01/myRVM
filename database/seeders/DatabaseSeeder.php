@@ -18,7 +18,8 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             ReverseVendingMachineSeeder::class,
             DepositSeeder::class,
-            PromptTemplateSeeder::class,
+            // PromptTemplateSeeder::class,
+            PromptSampleSeeder::class,
             // Tambahkan seeder lain di sini jika ada
         ]);
 

@@ -118,10 +118,12 @@ watch(() => page.props.flash, (newFlashValue) => {
                           </svg>
                         Manajemen User
                     </NavLink>
-
-                    <NavLink :href="route('admin.prompt-templates.index')" :active="page.url.startsWith('/admin/prompt-templates')">
+                    <NavLink :href="route('admin.configured-prompts.index')" :active="page.url.startsWith('/admin/configured-prompts')">
                         Manajemen Prompt AI
                     </NavLink>
+                    <!-- <NavLink :href="route('admin.prompt-templates.index')" :active="page.url.startsWith('/admin/prompt-templates')"> -->
+                        <!-- Manajemen Prompt AI -->
+                    <!-- </NavLink> -->
                 </nav>
             </aside>
 

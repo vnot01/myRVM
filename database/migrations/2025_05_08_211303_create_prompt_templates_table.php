@@ -10,14 +10,10 @@ return new class extends Migration
     {
         Schema::create('prompt_templates', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique();
+            $table->string('template_name')->unique();
+            $table->text('template_string'); // Dengan placeholder seperti {{target_desc}}
             $table->text('description')->nullable();
-            $table->text('target_prompt');
-            $table->text('condition_prompt');
-            $table->text('label_guidance');
-            $table->text('output_instructions');
-            $table->json('generation_config')->nullable();
-            $table->boolean('is_active')->default(false)->index(); // index untuk pencarian cepat
+            $table->json('placeholders_defined')->nullable(); // Array string placeholder
             $table->timestamps();
         });
     }

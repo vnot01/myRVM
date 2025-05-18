@@ -10,6 +10,7 @@ use Illuminate\Http\UploadedFile;
 use Exception; // Import class Exception
 use App\Models\PromptTemplate;
 use Illuminate\Support\Facades\Cache;
+use App\Models\ConfiguredPrompt;
 
 class GeminiVisionService
 {
@@ -93,6 +94,43 @@ class GeminiVisionService
         if (!$this->apiKey || !$this->apiEndpoint) {
             throw new Exception('Gemini API Key or Endpoint is not configured in services config.');
         }
+    }
+
+    // app/Services/GeminiVisionService.php
+    // ...
+    public function getActiveConfiguredPrompt(): ?ConfiguredPrompt // Ubah return type
+    {
+        $cacheKey = config('services.google.active_prompt_cache_key', 'gemini_active_configured_prompt');
+        // Cache selama misal 60 menit, atau sampai di-forget saat ada aktivasi baru
+        return Cache::remember($cacheKey, now()->addHour(), function () {
+            return ConfiguredPrompt::where('is_active', true)->first();
+        });
+    }
+
+    // Metode utama yang dipanggil RvmController akan menggunakan ini
+    public function analyzeImageUsingActivePrompt($imageFile)
+    {
+        $activeConfiguredPrompt = $this->getActiveConfiguredPrompt();
+
+        if (!$activeConfiguredPrompt) {
+            Log::error('GeminiService: No active configured prompt found.');
+            // Kembalikan struktur error standar atau throw exception
+            return [['label' => 'REJECTED_SYSTEM_ERROR', 'reason' => 'No active prompt']];
+        }
+
+        $fullPrompt = $activeConfiguredPrompt->full_prompt_text_generated;
+        $generationConfig = $activeConfiguredPrompt->generation_config_final; // Ini sudah array
+
+        Log::info('GeminiService: Using active configured prompt.', [
+            'prompt_name' => $activeConfiguredPrompt->configured_prompt_name,
+            'prompt_length' => strlen($fullPrompt)
+        ]);
+
+        // Panggil metode yang melakukan call API dengan prompt, gambar, dan config
+        $analysisResult = $this->analyzeWithCustomPromptAndConfig($imageFile, $fullPrompt, $generationConfig);
+
+        // Kembalikan hasil parsing atau response mentah sesuai kebutuhan RvmController
+        return $analysisResult['parsed_data'] ?? [['label' => 'REJECTED_PARSING_ERROR', 'raw_text' => $analysisResult['raw_text']]];
     }
 
     /**

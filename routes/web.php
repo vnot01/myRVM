@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\DashboardController; // Dashboard
 use App\Http\Controllers\Admin\RvmManagementController; // RVM Management
 use App\Http\Controllers\Admin\UserManagementController; // Users Management
 use App\Http\Controllers\Admin\PromptTemplateController; // My VisionPrompt
+use App\Http\Controllers\Admin\ConfiguredPromptController; // Configurasi Prompt
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -50,11 +51,15 @@ Route::middleware(['auth', 'verified', 'role:Admin,Operator'])
         Route::put('/users/{user}', [UserManagementController::class, 'update'])->name('users.update')->middleware('role:Admin');
         Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy')->middleware('role:Admin');
 
+        
         // --- RUTE BARU UNTUK PROMPT TEMPLATE MANAGEMENT ---
-        Route::post('/prompt-templates/test-prompt', [PromptTemplateController::class, 'testPrompt'])->name('prompt-templates.test');
-        Route::resource('/prompt-templates', PromptTemplateController::class)->except(['show']);
-        // Kita akan tambahkan rute 'activate' secara terpisah nanti
-        Route::post('/prompt-templates/{promptTemplate}/activate', [PromptTemplateController::class, 'activate'])->name('prompt-templates.activate');
+        Route::resource('/configured-prompts', ConfiguredPromptController::class)->except(['show']);
+        Route::post('/configured-prompts/{configuredPrompt}/activate', [ConfiguredPromptController::class, 'activate'])->name('configured-prompts.activate'); // Perlu metode activate
+        Route::post('/configured-prompts/test-prompt', [ConfiguredPromptController::class, 'testPrompt'])->name('configured-prompts.test'); // Perlu metode testPrompt
+        // Route::post('/prompt-templates/test-prompt', [PromptTemplateController::class, 'testPrompt'])->name('prompt-templates.test');
+        // Route::resource('/prompt-templates', PromptTemplateController::class)->except(['show']);
+        // // Kita akan tambahkan rute 'activate' secara terpisah nanti
+        // Route::post('/prompt-templates/{promptTemplate}/activate', [PromptTemplateController::class, 'activate'])->name('prompt-templates.activate');
         // --- AKHIR RUTE BARU ---
         // ... rute CRUD user lainnya ...
     });
