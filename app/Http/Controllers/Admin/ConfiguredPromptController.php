@@ -140,7 +140,7 @@ class ConfiguredPromptController extends Controller
 
     public function edit(ConfiguredPrompt $configuredPrompt) // Route model binding
     {
-        // $configuredPrompt->load('template', 'componentMappings.component'); // Eager load relasi
+        $configuredPrompt->load('template', 'componentMappings.component'); // Eager load relasi
         return Inertia::render('Admin/ConfiguredPrompts/Edit', [
             'configuredPrompt' => $configuredPrompt,
             'promptTemplates' => PromptTemplate::orderBy('template_name')->get(['id', 'template_name', 'template_string', 'placeholders_defined']),
@@ -150,55 +150,80 @@ class ConfiguredPromptController extends Controller
 
     public function update(Request $request, ConfiguredPrompt $configuredPrompt)
     {
+        // ... (otorisasi) ...
+
         $validated = $request->validate([
-            'configured_prompt_name' => ['required','string','max:255',Rule::unique('configured_prompts')->ignore($configuredPrompt->id)],
+            'configured_prompt_name' => ['required', 'string', 'max:255', Rule::unique('configured_prompts')->ignore($configuredPrompt->id)],
             'prompt_template_id' => 'nullable|exists:prompt_templates,id',
             'description' => 'nullable|string',
             'full_prompt_text_generated' => 'required|string',
             'generation_config_final_json' => ['required', 'json'],
-            // 'mappings' => 'nullable|array',
+            'mappings' => 'nullable|array',
+            'mappings.*.placeholder_in_template' => 'required_with:mappings|string',
+            'mappings.*.prompt_component_id' => 'required_with:mappings|exists:prompt_components,id',
+            // Tambahkan validasi untuk field segmen manual jika dikirim dan tidak ada template
+            'target_prompt_segment' => 'required_without:prompt_template_id|nullable|string',
+            'condition_prompt_segment' => 'required_without:prompt_template_id|nullable|string',
+            'label_guidance_segment' => 'required_without:prompt_template_id|nullable|string',
+            'output_instructions_segment' => 'required_without:prompt_template_id|nullable|string',
         ]);
 
         DB::beginTransaction();
         try {
             $generationConfigFinal = json_decode($validated['generation_config_final_json'], true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new \InvalidArgumentException('Format JSON untuk Generation Config tidak valid.');
+                return back()->withErrors(['generation_config_final_json' => 'Format JSON untuk Generation Config tidak valid.'])->withInput();
             }
 
-            // Untuk versioning sederhana: buat record baru sebagai revisi
-            // $newVersion = ConfiguredPrompt::create([
-            //     'configured_prompt_name' => $validated['configured_prompt_name'],
-            //     'prompt_template_id' => $validated['prompt_template_id'] ?? null,
-            //     'description' => $validated['description'] ?? null,
-            //     'full_prompt_text_generated' => $validated['full_prompt_text_generated'],
-            //     'generation_config_final' => $generationConfigFinal,
-            //     'is_active' => false, // Versi baru tidak otomatis aktif
-            //     'version' => $configuredPrompt->version + 1,
-            //     'root_configured_prompt_id' => $configuredPrompt->root_configured_prompt_id ?? $configuredPrompt->id,
-            // ]);
-            // TODO: Salin mapping jika ada
+            // Logika Versioning (Buat record baru sebagai revisi)
+            $newVersionNumber = $configuredPrompt->version + 1;
+            $rootPromptId = $configuredPrompt->root_configured_prompt_id ?? $configuredPrompt->id;
 
-            // Atau update in-place (lebih sederhana untuk sekarang)
-            $configuredPrompt->update([
-                'configured_prompt_name' => $validated['configured_prompt_name'],
+            // Simpan sebagai versi baru
+            $newVersionPrompt = ConfiguredPrompt::create([
+                'configured_prompt_name' => $validated['configured_prompt_name'], // Nama bisa sama jika versi beda, atau tambahkan (vX)
                 'prompt_template_id' => $validated['prompt_template_id'] ?? null,
                 'description' => $validated['description'] ?? null,
                 'full_prompt_text_generated' => $validated['full_prompt_text_generated'],
                 'generation_config_final' => $generationConfigFinal,
+                'is_active' => false, // Versi baru tidak otomatis aktif
+                'version' => $newVersionNumber,
+                'root_configured_prompt_id' => $rootPromptId,
             ]);
-            // TODO: Update ConfiguredPrompt_Component_Mappings (hapus lama, buat baru)
+
+            // Hapus mapping lama dari versi SEBELUMNYA jika Anda tidak ingin menumpuk
+            // $configuredPrompt->componentMappings()->delete(); // Atau update mapping dari $newVersionPrompt
+
+            // Buat mapping baru untuk versi baru jika ada
+            if ($newVersionPrompt->prompt_template_id && !empty($validated['mappings'])) {
+                $mappingsToCreate = [];
+                foreach ($validated['mappings'] as $mapping) {
+                    $mappingsToCreate[] = [
+                        'placeholder_in_template' => $mapping['placeholder_in_template'],
+                        'prompt_component_id' => $mapping['prompt_component_id'],
+                    ];
+                }
+                if (!empty($mappingsToCreate)) {
+                    $newVersionPrompt->componentMappings()->createMany($mappingsToCreate);
+                }
+            }
+
+            // Jika versi lama aktif, dan Anda ingin versi baru ini yang aktif:
+            // if ($configuredPrompt->is_active) {
+            //    $configuredPrompt->update(['is_active' => false]); // Nonaktifkan versi lama
+            //    $newVersionPrompt->update(['is_active' => true]); // Aktifkan versi baru
+            //    Cache::forget(config('services.google.active_prompt_cache_key', 'gemini_active_configured_prompt'));
+            // }
 
             DB::commit();
-            Cache::forget(config('services.google.active_prompt_cache_key', 'gemini_active_configured_prompt')); // Clear cache jika prompt aktif diubah
-            return redirect()->route('admin.configured-prompts.index')->with('success', 'Konfigurasi prompt berhasil diperbarui.');
-
+            return redirect()->route('admin.configured-prompts.index')->with('success', 'Konfigurasi prompt berhasil diperbarui (sebagai versi baru).');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error updating configured prompt: ' . $e->getMessage(), ['id' => $configuredPrompt->id, 'trace' => $e->getTraceAsString()]);
             return redirect()->back()->with('error', 'Gagal memperbarui konfigurasi prompt: ' . $e->getMessage())->withInput();
         }
     }
+       
 
     /**
      * Test a given prompt configuration with an image.
@@ -283,6 +308,69 @@ class ConfiguredPromptController extends Controller
             return response()->json(['error' => 'Terjadi kesalahan internal server saat pengujian: ' . $e->getMessage()], 500);
         }
     }
-    
+
+    public function destroy(ConfiguredPrompt $configuredPrompt)
+    {
+        // Otorisasi (Contoh, akan disempurnakan dengan Policy)
+        if (Auth::user()->role !== 'Admin') {
+            return redirect()->back()->with('error', 'Anda tidak diizinkan melakukan aksi ini.');
+        }
+        if ($configuredPrompt->is_active) {
+            return redirect()->route('admin.configured-prompts.index')
+                ->with('error', 'Tidak dapat menghapus template prompt yang sedang aktif.');
+        }
+        try {
+            $promptName = $configuredPrompt->configured_prompt_name;
+            // Hapus mapping dulu jika ada dan jika relasi tidak di-set onDelete('cascade') untuk mapping
+            $configuredPrompt->componentMappings()->delete(); // Jika perlu
+            $configuredPrompt->delete();
+            info('ConfiguredPrompt deleted.', ['id' => $configuredPrompt->id, 'name' => $promptName, 'admin_id' => Auth::id()]);
+            return redirect()->route('admin.configured-prompts.index')
+                ->with('success', "Konfigurasi prompt \"{$promptName}\" berhasil dihapus/dinonaktifkan.");
+            // return redirect()->route('admin.configured-prompts.index')
+            //                  ->with('success', "Konfigurasi prompt \"{$promptName}\" berhasil dihapus.");
+        } catch (\Exception $e) {
+            Log::error('Error deleting configured prompt: ' . $e->getMessage(), ['id' => $configuredPrompt->id]);
+            return redirect()->route('admin.configured-prompts.index')
+                ->with('error', 'Gagal menghapus konfigurasi prompt. Terjadi kesalahan server.');
+        }
+    }
+
+    public function activate(Request $request, ConfiguredPrompt $configuredPrompt) // Menggunakan Request jika perlu, tapi biasanya tidak untuk aksi ini
+    {
+        // Otorisasi (Pastikan hanya Admin)
+        if (Auth::user()->role !== 'Admin') {
+            return redirect()->back()->with('error', 'Anda tidak diizinkan melakukan aksi ini.');
+        }
+
+        DB::beginTransaction();
+        try {
+            // 1. Nonaktifkan semua prompt lain
+            ConfiguredPrompt::where('is_active', true)
+                ->where('id', '!=', $configuredPrompt->id) // Jangan nonaktifkan diri sendiri jika sudah aktif (meskipun jarang terjadi)
+                ->update(['is_active' => false]);
+
+            // 2. Aktifkan prompt yang dipilih
+            $configuredPrompt->is_active = true;
+            $configuredPrompt->save();
+
+            // 3. Bersihkan cache template aktif di GeminiVisionService
+            // Pastikan key cache ini sama dengan yang digunakan di GeminiVisionService
+            Cache::forget(config('services.google.active_prompt_cache_key', 'gemini_active_configured_prompt'));
+
+            DB::commit();
+            Log::info('ConfiguredPrompt activated.', ['id' => $configuredPrompt->id, 'name' => $configuredPrompt->configured_prompt_name, 'admin_id' => Auth::id()]);
+
+            return redirect()->route('admin.configured-prompts.index')
+                ->with('success', "Konfigurasi prompt \"{$configuredPrompt->configured_prompt_name}\" berhasil diaktifkan.");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error activating configured prompt: ' . $e->getMessage(), ['id' => $configuredPrompt->id]);
+            return redirect()->route('admin.configured-prompts.index')
+                ->with('error', 'Gagal mengaktifkan konfigurasi prompt. Terjadi kesalahan server.');
+        }
+    }
+
     // destroy, activate, testPrompt akan ditambahkan/disempurnakan
 }

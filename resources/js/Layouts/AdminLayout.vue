@@ -8,6 +8,8 @@ import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue'; // Jika Anda pakai untuk mobile sidebar
 import { ref, watch, onMounted, onUpdated } from 'vue';
+// import { CiColorDbc } from "oh-vue-icons/icons";
+// CiColorDbc
 
 
 const page = usePage();
@@ -119,7 +121,14 @@ watch(() => page.props.flash, (newFlashValue) => {
                         Manajemen User
                     </NavLink>
                     <NavLink :href="route('admin.configured-prompts.index')" :active="page.url.startsWith('/admin/configured-prompts')">
-                        Manajemen Prompt AI
+                        <svg class="mr-3 w-5 h-5 border-green-300 dark:border-green-600 animate-pulse text-green-700 dark:text-green-400 transition duration-75 group-hover:text-gray-900 dark:group-hover:text-gray-300 icon icon-tabler icons-tabler-outline icon-tabler-terminal" 
+                            aria-hidden="true" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  
+                            stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <path d="M5 7l5 5l-5 5" /><path d="M12 19l7 0" />
+                        </svg>
+                        <span class="border-green-300 dark:border-green-600 animate-pulse text-green-700 dark:text-green-400 transition duration-75">Manajemen Prompt AI</span>
+                        
                     </NavLink>
                     <!-- <NavLink :href="route('admin.prompt-templates.index')" :active="page.url.startsWith('/admin/prompt-templates')"> -->
                         <!-- Manajemen Prompt AI -->

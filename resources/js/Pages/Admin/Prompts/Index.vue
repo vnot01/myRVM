@@ -46,9 +46,7 @@ const deleteTemplate = (templateId, templateName) => {
 </script>
 
 <template>
-
-    <Head title="Manajemen Prompt AI" />
-
+    <Head title="Manajemen Konfigurasi Prompt" />
     <AdminLayout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
