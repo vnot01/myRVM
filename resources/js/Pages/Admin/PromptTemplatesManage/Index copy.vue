@@ -155,10 +155,11 @@ const formatDate = (dateString) => {
                     <h1 class="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                         Template Tersimpan
                     </h1>
-                    <Link :href="route('admin.prompt-templates.create')" class="cursor-pointer select-none px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium inline-flex items-center">
-                        <IconPlus class="w-5 h-5 mr-2" />
-                        <span class="hidden sm:inline select-none">Tambah Template</span>
-                        <span class="sm:hidden">Baru</span>
+                    <Link :href="route('admin.prompt-templates.create')">
+                        <PrimaryButton class="flex items-center">
+                            <IconPlus class="w-5 h-5 mr-2" />
+                            Tambah Template
+                        </PrimaryButton>
                     </Link>
                 </div>
                 <div class="mt-4 mx-4 sm:mx-6 lg:mx-8">
@@ -199,7 +200,7 @@ const formatDate = (dateString) => {
                                          <span v-if="template.placeholders_defined && template.placeholders_defined.length > 0"
                                               v-for="(ph, index) in template.placeholders_defined" :key="index"
                                               class="inline-block bg-sky-100 dark:bg-sky-700 text-sky-800 dark:text-sky-200 text-xs font-medium px-2 py-0.5 rounded">
-                                            {{ '{' + '{' + ph + '}' + '}' }}
+                                            <!-- {{ `{{${ph}}}` }} -->
                                         </span>
                                         <span v-else class="text-xs italic text-gray-400 dark:text-gray-500">- Tidak ada -</span>
                                     </div>
