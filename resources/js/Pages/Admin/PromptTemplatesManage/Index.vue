@@ -254,10 +254,10 @@ const formatDate = (dateString) => {
                     Hapus Template Prompt
                 </h2>
                 <p v-if="templateToDelete" class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    Apakah Anda yakin ingin menghapus template
+                    Apakah Anda yakin ingin menghapus template prompt
                     <strong class="dark:text-gray-200">"{{ templateToDelete.template_name }}"</strong>?
                     <br/>
-                    Tindakan ini tidak dapat diurungkan. Pastikan template ini tidak lagi digunakan.
+                    Tindakan ini tidak dapat diurungkan. Pastikan tidak lagi digunakan.
                 </p>
                 <InputError :message="deleteTemplateForm.errors.general" class="mt-2" />
                 <div class="mt-6 flex justify-end">

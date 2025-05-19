@@ -7,6 +7,7 @@ import Pagination from '@/Components/Pagination.vue';
 import TextInput from '@/Components/TextInput.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SelectInput from '@/Components/SelectInput.vue'; // Atau <select> HTML biasa
+import Modal from '@/Components/Modal.vue';
 import { IconPlus, IconEdit, IconTrash, IconFilter, IconSearch } from '@tabler/icons-vue';
 
 const props = defineProps({
@@ -143,6 +144,26 @@ const deleteComponent = (componentId, componentName) => { // Placeholder, akan b
         });
     }
 };
+// --- Fungsi BARU untuk Modal Hapus Template ---
+const openDeleteTemplateModal = (template) => {
+    templateToDelete.value = template;
+    confirmingTemplateDeletion.value = true;
+};
+const closeDeleteTemplateModal = () => {
+    confirmingTemplateDeletion.value = false;
+    templateToDelete.value = null;
+    deleteTemplateForm.reset(); deleteTemplateForm.clearErrors();
+};
+const confirmAndDeleteTemplate = () => {
+    if (!templateToDelete.value) return;
+    const deletedTemplateName = templateToDelete.value.component_name;
+    deleteTemplateForm.delete(route('admin.prompt-components.destroy', templateToDelete.value.id), {
+        preserveScroll: true,
+        onSuccess: () => { closeDeleteTemplateModal(); console.log(`Template "${deletedTemplateName}" dihapus.`); },
+        onError: (errors) => { console.error('Gagal hapus:', errors); }
+    });
+};
+// --- AKHIR FUNGSI MODAL HAPUS ---
 </script>
 
 <template>
@@ -233,7 +254,7 @@ const deleteComponent = (componentId, componentName) => { // Placeholder, akan b
                                 <button @click.stop="editComponent(component.id)" class="p-1.5 text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 bg-indigo-100 dark:bg-indigo-700/50 hover:bg-indigo-200 dark:hover:bg-indigo-600/50 rounded-md" title="Edit Komponen">
                                     <IconEdit class="w-4 h-4"/>
                                 </button>
-                                <button @click.stop="deleteComponent(component.id, component.component_name)" class="p-1.5 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 bg-red-100 dark:bg-red-700/50 hover:bg-red-200 dark:hover:bg-red-600/50 rounded-md" title="Hapus Komponen">
+                                <button @click.stop="openDeleteTemplateModal(component)" class="p-1.5 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 bg-red-100 dark:bg-red-700/50 hover:bg-red-200 dark:hover:bg-red-600/50 rounded-md" title="Hapus Komponen">
                                     <IconTrash class="w-4 h-4"/>
                                 </button>
                             </div>
@@ -266,5 +287,30 @@ const deleteComponent = (componentId, componentName) => { // Placeholder, akan b
             </div> <!-- Akhir Area Scrollable -->
         </div>
         <!-- Modal Konfirmasi Hapus (jika Anda ingin implementasi di sini) -->
+         <Modal :show="confirmingTemplateDeletion" @close="closeDeleteTemplateModal">
+            <div class="p-6 dark:bg-slate-800">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
+                    Hapus Template Prompt
+                </h2>
+                <p v-if="templateToDelete" class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Apakah Anda yakin ingin menghapus component prompt
+                    <strong class="dark:text-gray-200">"{{ templateToDelete.component_name }}"</strong>?
+                    <br/>
+                    Tindakan ini tidak dapat diurungkan. Pastikan tidak lagi digunakan.
+                </p>
+                <InputError :message="deleteTemplateForm.errors.general" class="mt-2" />
+                <div class="mt-6 flex justify-end">
+                    <SecondaryButton @click="closeDeleteTemplateModal">Batal</SecondaryButton>
+                    <DangerButton
+                        class="ms-3"
+                        :class="{ 'opacity-25': deleteTemplateForm.processing }"
+                        :disabled="deleteTemplateForm.processing"
+                        @click="confirmAndDeleteTemplate"
+                    >
+                        Ya, Hapus Template
+                    </DangerButton>
+                </div>
+            </div>
+        </Modal>
     </AdminLayout>
 </template>
