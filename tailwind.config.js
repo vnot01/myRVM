@@ -9,7 +9,7 @@ export default {
         './resources/views/**/*.blade.php',
         './resources/js/**/*.vue',
     ],
-
+    // darkMode: 'class',
     theme: {
         extend: {
             fontFamily: {
@@ -30,6 +30,15 @@ export default {
                 'dark-card-bg': '#1F2937',  // Abu-abu lebih terang (gray-800)
                 'dark-text': '#F3F4F6',     // Abu-abu sangat terang (gray-100/slate-100)
                 'dark-text-secondary': '#9CA3AF', // Abu-abu sedang (gray-400)
+            },
+            keyframes: { // <-- TAMBAHKAN INI
+                blink: {
+                    '0%, 100%': { opacity: 1 },
+                    '50%': { opacity: 0.3 }, // Atur opacity kedipan sesuai selera
+                }
+            },
+            animation: { // <-- TAMBAHKAN INI
+                blink: 'blink 1.5s linear infinite', // Durasi, timing, dan iterasi
             },
         },
     },

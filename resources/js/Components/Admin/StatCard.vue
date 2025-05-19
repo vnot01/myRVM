@@ -1,50 +1,52 @@
 <script setup>
 import { computed } from 'vue';
+import { Link } from '@inertiajs/vue3';
 
 const props = defineProps({
     title: String,
     value: [String, Number],
-    icon: Object, // Komponen ikon Tabler atau SVG string
-    colorClass: { // Kelas Tailwind untuk warna background/border
+    icon: String, // Nama ikon dari library (misal FontAwesome) atau path SVG
+    colorClass: { // Kelas Tailwind untuk background atau border
         type: String,
-        default: 'bg-sky-500 dark:bg-sky-700'
+        default: 'bg-blue-500',
     },
-    change: String, // Misal: "+12%" atau "-5"
-    changeType: String // 'positive', 'negative', atau 'neutral'
+    description: String, // Teks tambahan di bawah nilai
+    link: String, // URL jika kartu bisa diklik
+    linkText: String, // Teks untuk link
 });
 
-const valueFormatted = computed(() => {
-    if (typeof props.value === 'number') {
-        return props.value.toLocaleString('id-ID');
-    }
-    return props.value;
-});
-
-const changeColorClass = computed(() => {
-    if (props.changeType === 'positive') return 'text-green-600 dark:text-green-400';
-    if (props.changeType === 'negative') return 'text-red-600 dark:text-red-400';
-    return 'text-gray-500 dark:text-gray-400';
+const cardClasses = computed(() => {
+    return `p-6 rounded-lg shadow-lg text-white ${props.colorClass}`;
 });
 </script>
 
 <template>
-    <div class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg flex items-start space-x-4">
-        <div :class="colorClass" class="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-lg text-white">
-            <component :is="icon" class="w-6 h-6" v-if="icon" />
-            <span v-else class="text-2xl font-bold">?</span>
-        </div>
-        <div>
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ title }}</p>
-            <!-- Gunakan slot untuk value jika ada, jika tidak, tampilkan props.value -->
-            <slot name="value">
-                <p class="text-3xl font-semibold text-gray-900 dark:text-white">{{ valueFormatted }}</p>
-            </slot>
-            <div v-if="change || $slots.change" class="text-xs mt-1"> <!-- Cek juga $slots.change -->
-                <!-- Gunakan slot untuk change jika ada, jika tidak, tampilkan props.change -->
-                <slot name="change">
-                    <span :class="changeColorClass" class="font-semibold">{{ change }}</span>
-                </slot>
+    <div :class="cardClasses">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium uppercase tracking-wider">
+                    {{ title }}
+                </p>
+                <p class="text-3xl font-semibold">
+                    {{ value }}
+                </p>
+                <!-- Menggunakan slot 'description' jika ada, atau prop 'description' jika slot tidak diisi -->
+                <div v-if="$slots.description || description" class="text-xs mt-1 opacity-90">
+                    <slot name="description">
+                        {{ description }} <!-- Fallback ke prop description -->
+                    </slot>
+                </div>
             </div>
+            <div v-if="icon" class="text-4xl opacity-70">
+                <!-- Anda bisa menggunakan library ikon atau SVG inline di sini -->
+                <!-- Contoh placeholder ikon -->
+                <span v-html="icon"></span>
+            </div>
+        </div>
+        <div v-if="link && linkText" class="mt-4">
+            <Link :href="link" class="text-sm font-medium hover:underline">
+                {{ linkText }} →
+            </Link>
         </div>
     </div>
 </template>
