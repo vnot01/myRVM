@@ -78,7 +78,7 @@ const deleteComponent = (componentId, componentName) => {
                 <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6 text-gray-900 dark:text-gray-100">
                         <div class="flex flex-col sm:flex-row justify-between items-center mb-6">
-                            <h3 class="text-lg font-medium">Daftar Komponen Prompt</h3>
+                            <h1 class="text-lg font-medium">Daftar Komponen Prompt</h1>
                             <Link :href="route('admin.prompt-components.create')">
                                 <PrimaryButton class="flex items-center">
                                     <IconPlus class="w-5 h-5 mr-2" />
