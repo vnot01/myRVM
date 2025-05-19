@@ -230,16 +230,58 @@ const combinedDepositsAndPointsChartData = computed(() => {
             </h2>
         </template>
 
-        <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="py-6">
+            <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                    <div class="p-6 text-gray-900 dark:text-gray-100">
+                    <div class="mb-6 text-gray-900 dark:text-gray-100 text-lg">
                         Selamat datang di Dashboard Admin!
                     </div>
                 </div>
 
                 <!-- Kartu Statistik -->
-                <div class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+                    <div>
+                    <div v-if="activePromptInfo"
+                        class="mt-8 bg-green-50 dark:bg-green-800/30 border-green-500 dark:border-green-400 animate-pulse shadow-sm sm:rounded-lg p-6">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">
+                            <span v-html="promptIcon" class=" inline-block w-6 h-6 mr-6 align-middle"></span>
+                            <span class="inline-block align-middle">Prompt AI Aktif Saat Ini</span>
+                        </h3>
+                        <p class="text-gray-700 dark:text-gray-300">
+                            Nama: <span class="font-semibold">{{ activePromptInfo.name }}</span> (Versi: {{
+                                activePromptInfo.version }})
+                        </p>
+                        <p class="text-gray-700 dark:text-gray-300">
+                            Skor Kepercayaan Estimasi: <span class="font-semibold">{{ activePromptInfo.score ?
+                                (activePromptInfo.score * 100).toFixed(0) + '%' : 'N/A' }}</span>
+                        </p>
+                        <Link :href="route('admin.configured-prompts.edit', activePromptInfo.id)"
+                            class="mt-2 inline-block text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+                        Lihat/Edit Prompt Aktif →
+                        </Link>
+                    </div>
+                    <div v-else
+                        class="mt-8 bg-yellow-100 dark:bg-yellow-700 border-l-4 border-yellow-500 dark:border-yellow-300 text-yellow-700 dark:text-yellow-200 p-4 shadow-sm sm:rounded-lg"
+                        role="alert">
+                        <div class="flex">
+                            <div class="py-1"><svg
+                                    class="fill-current h-6 w-6 text-yellow-500 dark:text-yellow-300 mr-4"
+                                    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                    <path
+                                        d="M2.93 17.07A10 10 0 1 1 17.07 2.93 10 10 0 0 1 2.93 17.07zM9 5v6h2V5H9zm0 8v2h2v-2H9z" />
+                                </svg></div>
+                            <div>
+                                <p class="font-bold">Tidak Ada Prompt AI Aktif</p>
+                                <p class="text-sm">Sistem mungkin tidak dapat memproses deposit dengan benar. Silakan
+                                    aktifkan salah satu konfigurasi prompt di Manajemen Prompt AI.</p>
+                                <Link :href="route('admin.configured-prompts.index')"
+                                    class="mt-2 inline-block font-semibold text-yellow-800 dark:text-yellow-100 hover:underline">
+                                Ke Manajemen Prompt AI →
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                     <StatCard title="Total RVM Terdaftar" :value="stats.totalRvms" :icon="rvmIcon"
                         colorClass="bg-sky-500" :link="route('admin.rvms.index')" linkText="Lihat Semua RVM" />
                     <StatCard title="RVM Aktif" :value="`${stats.activeRvms}`" :icon="rvmStatusIcon"
@@ -269,83 +311,47 @@ const combinedDepositsAndPointsChartData = computed(() => {
                         colorClass="bg-orange-500" :description="`Poin: ${stats.weekPointsAwarded}`" />
                     <StatCard title="Deposit Bulan Ini" :value="stats.monthDepositsCount" :icon="depositIcon"
                         colorClass="bg-rose-500" :description="`Poin: ${stats.monthPointsAwarded}`" />
-
+                    
                 </div>
-
-                <!-- Informasi Prompt Aktif -->
-                <div v-if="activePromptInfo"
-                    class="mt-8 bg-green-50 dark:bg-green-800/30 border-green-500 dark:border-green-400 animate-pulse shadow-sm sm:rounded-lg p-6">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">
-                        <span v-html="promptIcon" class=" inline-block w-6 h-6 mr-6 align-middle"></span>
-                        <span class="inline-block align-middle">Prompt AI Aktif Saat Ini</span>
-                    </h3>
-                    <p class="text-gray-700 dark:text-gray-300">
-                        Nama: <span class="font-semibold">{{ activePromptInfo.name }}</span> (Versi: {{
-                        activePromptInfo.version }})
-                    </p>
-                    <p class="text-gray-700 dark:text-gray-300">
-                        Skor Kepercayaan Estimasi: <span class="font-semibold">{{ activePromptInfo.score ?
-                            (activePromptInfo.score * 100).toFixed(0) + '%' : 'N/A' }}</span>
-                    </p>
-                    <Link :href="route('admin.configured-prompts.edit', activePromptInfo.id)"
-                        class="mt-2 inline-block text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
-                    Lihat/Edit Prompt Aktif →
-                    </Link>
-                </div>
-                <div v-else
-                    class="mt-8 bg-yellow-100 dark:bg-yellow-700 border-l-4 border-yellow-500 dark:border-yellow-300 text-yellow-700 dark:text-yellow-200 p-4 shadow-sm sm:rounded-lg"
-                    role="alert">
-                    <div class="flex">
-                        <div class="py-1"><svg class="fill-current h-6 w-6 text-yellow-500 dark:text-yellow-300 mr-4"
-                                xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                                <path
-                                    d="M2.93 17.07A10 10 0 1 1 17.07 2.93 10 10 0 0 1 2.93 17.07zM9 5v6h2V5H9zm0 8v2h2v-2H9z" />
-                            </svg></div>
-                        <div>
-                            <p class="font-bold">Tidak Ada Prompt AI Aktif</p>
-                            <p class="text-sm">Sistem mungkin tidak dapat memproses deposit dengan benar. Silakan
-                                aktifkan salah satu konfigurasi prompt di Manajemen Prompt AI.</p>
-                            <Link :href="route('admin.configured-prompts.index')"
-                                class="mt-2 inline-block font-semibold text-yellow-800 dark:text-yellow-100 hover:underline">
-                            Ke Manajemen Prompt AI →
-                            </Link>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- ... LineChart ... -->
+                    <div class="mt-8">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+                            Statistik Deposit 7 Hari Terakhir
+                        </h3>
+                        <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
+                            <!-- <LineChart/> -->
+                            <div
+                                v-if="depositsChartData && depositsChartData.labels && depositsChartData.labels.length > 0">
+                                <LineChart :data="combinedDepositsAndPointsChartData" :options="depositChartOptions"
+                                    :height="300" />
+                            </div>
+                            <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
+                                <p>Data grafik tidak tersedia atau belum ada aktivitas deposit dalam 7 hari terakhir.
+                                </p>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-
-                <!-- Area untuk Grafik (akan diisi nanti) -->
-                <div class="mt-8">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-                        Statistik Deposit 7 Hari Terakhir
-                    </h3>
+                    <!-- Grafik Distribusi Item -->
+                    <!-- ... PieChart ... -->
                     <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
-                        <!-- <LineChart/> -->
-                        <div
-                            v-if="depositsChartData && depositsChartData.labels && depositsChartData.labels.length > 0">
-                            <LineChart :data="combinedDepositsAndPointsChartData" :options="depositChartOptions"
-                                :height="300" />
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+                            Distribusi Jenis Item
+                        </h3>
+                        <div v-if="formattedItemDistributionChartData && formattedItemDistributionChartData.labels && formattedItemDistributionChartData.labels.length > 0"
+                            style="height: 350px;">
+                            <PieChart :chart-data="formattedItemDistributionChartData"
+                                :chart-options="itemDistributionOptions" />
                         </div>
                         <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
-                            <p>Data grafik tidak tersedia atau belum ada aktivitas deposit dalam 7 hari terakhir.</p>
+                            <p>Data distribusi item tidak tersedia.</p>
                         </div>
                     </div>
                 </div>
+                <!-- Informasi Prompt Aktif -->
+                
 
-                <!-- Grafik Distribusi Item -->
-                <!-- Diagram Lingkaran Distribusi Item -->
-                <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-                        Distribusi Jenis Item
-                    </h3>
-                    <div v-if="formattedItemDistributionChartData && formattedItemDistributionChartData.labels && formattedItemDistributionChartData.labels.length > 0"
-                        style="height: 350px;">
-                        <PieChart :chart-data="formattedItemDistributionChartData" :chart-options="itemDistributionOptions" />
-                    </div>
-                    <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
-                        <p>Data distribusi item tidak tersedia.</p>
-                    </div>
-                </div>
 
             </div>
         </div>
