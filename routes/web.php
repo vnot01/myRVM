@@ -59,11 +59,16 @@ Route::middleware(['auth', 'verified', 'role:Admin,Operator'])
         Route::post('/configured-prompts/{configuredPrompt}/activate', [ConfiguredPromptController::class, 'activate'])->name('configured-prompts.activate'); // Perlu metode activate
         Route::post('/configured-prompts/test-prompt', [ConfiguredPromptController::class, 'testPrompt'])->name('configured-prompts.test'); // Perlu metode testPrompt
         
-
-        // Route::get('/prompt-templates-manage', [PromptTemplateController::class, 'index'])->name('prompt-templates.index')->middleware('role:Admin');
-        // Route::get('/prompt-templates-manage/{templates}/edit', [PromptTemplateController::class, 'edit'])->name('prompt-templates.edit')->middleware('role:Admin');
-        Route::resource('/prompt-components-manage', PromptComponentController::class)->except(['show'])->names('prompt-components')->middleware('role:Admin');
-        Route::resource('/prompt-templates-manage', PromptTemplateController::class)->except(['show'])->names('prompt-templates')->middleware('role:Admin');
+        Route::resource('/prompt-components-manage', PromptComponentController::class)
+            ->except(['show'])
+            ->parameters(['prompt-components-manage' => 'promptComponent']) // Gunakan camelCase di sini
+            ->names('prompt-components')
+            ->middleware('role:Admin');
+        Route::resource('/prompt-templates-manage', PromptTemplateController::class)
+            ->except(['show'])
+            ->parameters(['prompt-templates-manage' => 'promptTemplate']) // Gunakan camelCase di sini
+            ->names('prompt-templates')
+            ->middleware('role:Admin');
         // --- AKHIR RUTE BARU ---
         // ... rute CRUD user lainnya ...
     });

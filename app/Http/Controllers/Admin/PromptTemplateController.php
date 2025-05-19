@@ -92,43 +92,10 @@ class PromptTemplateController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    // public function edit(PromptTemplate $promptTemplate)
-    // {
-    //     // Otorisasi sudah ditangani oleh middleware rute
-    //     info('Editing PromptTemplate ID:', ['id' => $promptTemplate->id, 'name' => $promptTemplate->template_name]); // Log data dasar
-
-    //     $dataForVue = [
-    //         'id' => $promptTemplate->id,
-    //         'template_name' => $promptTemplate->template_name,
-    //         'description' => $promptTemplate->description,
-    //         'template_string' => $promptTemplate->template_string,
-    //         'placeholders_defined_text' => implode(', ', $promptTemplate->placeholders_defined ?? []),
-    //     ];
-
-    //     // dd($promptTemplate, $dataForVue); // <-- DEBUG DI SINI
-
-    //     return Inertia::render('Admin/PromptTemplatesManage/Edit', [
-    //         'promptTemplate' => $dataForVue,
-    //         // Kirim juga errors jika ada dari redirect()->back()->withErrors() sebelumnya
-    //         // 'errors' => session('errors') ? session('errors')->getBag('default')->getMessages() : (object) [],
-    //     ]);
-    // }
-
-    public function edit(Request $request, $promptTemplateId)
+    public function edit(PromptTemplate $promptTemplate)
     {
-        // Log parameter mentah dari URL
-        info('Edit method called with raw parameter:', ['id_from_url' => $promptTemplateId]);
-
-        $promptTemplate = PromptTemplate::find($promptTemplateId); // Cari manual
-
-        if (!$promptTemplate) {
-            Log::error('PromptTemplate not found with ID:', ['id' => $promptTemplateId]);
-            abort(404, 'Template Prompt tidak ditemukan.');
-        }
-
-        // dd($promptTemplate); // Sekarang dd() di sini untuk melihat hasil find()
-
-        info('Editing PromptTemplate ID (manual find):', ['id' => $promptTemplate->id, 'name' => $promptTemplate->template_name]);
+        // Otorisasi sudah ditangani oleh middleware rute
+        info('Editing PromptTemplate ID:', ['id' => $promptTemplate->id, 'name' => $promptTemplate->template_name]); // Log data dasar
 
         $dataForVue = [
             'id' => $promptTemplate->id,
@@ -138,10 +105,43 @@ class PromptTemplateController extends Controller
             'placeholders_defined_text' => implode(', ', $promptTemplate->placeholders_defined ?? []),
         ];
 
+        // dd($promptTemplate, $dataForVue); // <-- DEBUG DI SINI
+
         return Inertia::render('Admin/PromptTemplatesManage/Edit', [
             'promptTemplate' => $dataForVue,
+            // Kirim juga errors jika ada dari redirect()->back()->withErrors() sebelumnya
+            // 'errors' => session('errors') ? session('errors')->getBag('default')->getMessages() : (object) [],
         ]);
     }
+
+    // public function edit(Request $request, $promptTemplateId)
+    // {
+    //     // Log parameter mentah dari URL
+    //     info('Edit method called with raw parameter:', ['id_from_url' => $promptTemplateId]);
+
+    //     $promptTemplate = PromptTemplate::find($promptTemplateId); // Cari manual
+
+    //     if (!$promptTemplate) {
+    //         Log::error('PromptTemplate not found with ID:', ['id' => $promptTemplateId]);
+    //         abort(404, 'Template Prompt tidak ditemukan.');
+    //     }
+
+    //     // dd($promptTemplate); // Sekarang dd() di sini untuk melihat hasil find()
+
+    //     info('Editing PromptTemplate ID (manual find):', ['id' => $promptTemplate->id, 'name' => $promptTemplate->template_name]);
+
+    //     $dataForVue = [
+    //         'id' => $promptTemplate->id,
+    //         'template_name' => $promptTemplate->template_name,
+    //         'description' => $promptTemplate->description,
+    //         'template_string' => $promptTemplate->template_string,
+    //         'placeholders_defined_text' => implode(', ', $promptTemplate->placeholders_defined ?? []),
+    //     ];
+
+    //     return Inertia::render('Admin/PromptTemplatesManage/Edit', [
+    //         'promptTemplate' => $dataForVue,
+    //     ]);
+    // }
 
     /**
      * Update the specified resource in storage.
