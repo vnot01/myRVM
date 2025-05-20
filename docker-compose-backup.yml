@@ -1,0 +1,124 @@
+# version: '3.8' # Versi format file docker-compose
+
+services:
+  # Service Aplikasi Laravel (PHP-FPM)
+  app:
+    build:
+      context: . # Konteks build adalah direktori saat ini (root proyek)
+      dockerfile: Dockerfile # Menggunakan Dockerfile yang sudah kita buat
+      # target: development_php # Jika Anda membuat stage 'development_php' di Dockerfile untuk Xdebug, dll.
+    container_name: rvm_app_prod # Nama kontainer (opsional, tapi memudahkan identifikasi)
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html # Mount direktori proyek lokal ke /var/www/html di kontainer
+                         # Ini bagus untuk development agar perubahan kode langsung terlihat
+                         # Untuk produksi, kode biasanya di-COPY ke image saat build
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/zz-local.ini # File konfigurasi PHP kustom (buat jika perlu)
+    environment:
+      # Variabel environment bisa diset di sini atau dibaca dari file .env oleh Laravel di kontainer
+      # Contoh:
+      # PHP_IDE_CONFIG: "serverName=Docker" # Untuk Xdebug jika digunakan
+      # XDEBUG_CONFIG: "client_host=host.docker.internal client_port=9003" # Untuk Xdebug
+      # XDEBUG_MODE: "debug,develop"
+      DB_CONNECTION: ${DB_CONNECTION:-mariadb} # Ambil dari .env host atau default mariadb
+      DB_HOST: ${DB_HOST:-db_prod}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_DATABASE:-myrvm_prod}
+      DB_USERNAME: ${DB_USERNAME:-rvm_user_prod}
+      DB_PASSWORD: ${DB_PASSWORD:-secret_prod}
+      # Tambahkan variabel env lain yang dibutuhkan Laravel di runtime
+      # seperti AWS_*, FILESYSTEM_DISK, dll. yang sudah kita set di .env.docker-dev
+      # Docker Compose akan membaca file .env di root proyek secara default
+    depends_on:
+      - db_prod # Aplikasi 'app' bergantung pada service 'db_prod'
+      - minio_prod # Akan ditambahkan nanti
+      - redis_prod # Jika menggunakan Redis
+    networks:
+      - rvm_network_prod # Semua service akan berada di jaringan ini
+
+  # Service Web Server (Nginx)
+  web:
+    image: nginx:1.25-alpine # Menggunakan image Nginx resmi versi Alpine
+    container_name: rvm_web_prod
+    restart: unless-stopped
+    ports:
+      - "8888:80" # Map port 8000 di mesin host Anda ke port 80 di kontainer Nginx
+                  # Jadi, Anda akses via http://localhost:8000
+    volumes:
+      - ./:/var/www/html # Mount direktori proyek (agar Nginx bisa akses folder public)
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf # Mount file konfigurasi Nginx kita
+    depends_on:
+      - app # Service 'web' bergantung pada service 'app'
+    networks:
+      - rvm_network_prod
+
+  # Service Database (MariaDB)
+  db_prod:
+    image: mariadb:10.11 # Gunakan versi MariaDB yang Anda inginkan
+    container_name: rvm_db_prod
+    restart: unless-stopped
+    ports:
+      - "33061:3306" # Map port 33061 di host ke port 3306 di kontainer MariaDB
+                     # Ini agar tidak konflik jika Anda punya MariaDB lokal di port 3306
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-myrvm_prod}       # Nama database, ambil dari .env host atau default
+      MYSQL_USER: ${DB_USERNAME:-rvm_user_prod}       # User database, ambil dari .env host atau default
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret_prod}     # Password user, ambil dari .env host atau default
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootsecret_prod} # Password root MariaDB, ambil dari .env host atau default
+    volumes:
+      - rvm_db_data_prod:/var/lib/mysql # Volume persisten untuk menyimpan data MariaDB
+                                     # 'rvm_db_data_prod' akan dibuat otomatis oleh Docker
+    networks:
+      - rvm_network_prod
+
+  # Service Database (phpmyadmin)  
+  phpmyadmin: # <-- SERVICE BARU UNTUK PHPMYADMIN
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: rvm_phpmyadmin_prod
+    restart: unless-stopped
+    ports:
+      - "8889:80" # Map port 8081 di host Anda ke port 80 di kontainer phpMyAdmin
+    environment:
+      PMA_HOST: db_prod        # Nama service MariaDB kita (dari service 'db_prod' di atas)
+      PMA_PORT: 3306          # Port internal MariaDB di dalam jaringan Docker
+      PMA_USER: root          # User default untuk login ke phpMyAdmin (bisa root atau user lain)
+      PMA_PASSWORD: ${DB_ROOT_PASSWORD:-rootsecret_prod} # Password untuk user di atas (ambil dari .env atau default)
+      # PMA_ARBITRARY: 1      # Uncomment ini jika Anda ingin bisa memasukkan nama server lain saat login
+      UPLOAD_LIMIT: 128M       # Batas upload file SQL (opsional)
+    depends_on:
+      - db_prod # phpMyAdmin bergantung pada service database
+    networks:
+      - rvm_network_prod # Semua service akan berada di jaringan ini
+
+    # Service Penyimpanan Objek (MinIO) - AKAN DITAMBAHKAN NANTI
+  minio_prod:
+    image: minio/minio:latest
+    container_name: rvm_minio_prod
+    restart: unless-stopped
+    ports:
+       # - "127.0.0.1:9001:9001" # MinIO versi Akses Docker local klo Mau akses dari Komputer, 
+                               # gunakan tunneling ssh -L 9001:127.0.0.1:9001 username@86.48.7.241
+                               # kemudian buka http://localhost:9001
+      - "0.0.0.0:9001:9001" # MinIO Console
+      - "0.0.0.0:9000:9000" # MinIO API
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin_prod}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin_prod_secret}
+    volumes:
+      - rvm_minio_data_prod:/data
+    command: server /data --console-address "0.0.0.0:9001"
+    networks:
+       - rvm_network_prod
+
+# Definisi Jaringan Kustom
+networks:
+  rvm_network_prod:
+    driver: bridge # Menggunakan driver bridge standar
+
+# Definisi Volume Persisten
+volumes:
+  rvm_db_data_prod: # Nama volume untuk data MariaDB
+    driver: local
+  rvm_minio_data_prod: # Akan ditambahkan nanti
+    driver: local

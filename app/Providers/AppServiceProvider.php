@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\App;
 // use App\Models\User; // <-- Tambahkan ini
 // use App\Policies\UserPolicy; // <-- Tambahkan ini
 
@@ -30,6 +32,9 @@ class AppServiceProvider extends ServiceProvider
         //      // Atau hardcode jika selalu 8000 saat dev dengan php artisan serve
         //      // config(['ziggy.port' => 8000]);
         // }
+        if (App::environment('production')) {
+            URL::forceScheme('https');
+        }
         Vite::prefetch(concurrency: 3);
     }
 }
