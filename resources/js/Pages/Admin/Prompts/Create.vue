@@ -86,7 +86,7 @@ const submitTestPrompt = async () => {
         testResult.value = response.data;
         // console.log('Test Prompt Result:', response.data);
     } catch (error) {
-        console.error('Error testing prompt:', error);
+        // console.error('Error testing prompt:', error);
         if (error.response) {
             testError.value = error.response.data.error || (error.response.data.errors ? JSON.stringify(error.response.data.errors) : 'Terjadi kesalahan saat pengujian.');
             testResult.value = error.response.data; // Tampilkan juga respons error jika ada

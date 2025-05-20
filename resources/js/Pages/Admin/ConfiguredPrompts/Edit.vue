@@ -364,7 +364,7 @@ const submitTestPrompt = async () => {
         testResult.value = response.data;
         // console.log('Test Prompt Result:', response.data);
     } catch (error) {
-        console.error('Error testing prompt:', error);
+        // console.error('Error testing prompt:', error);
         if (error.response && error.response.data) { // Cek error.response.data dulu
             testError.value = error.response.data.error || // Dari JSON {error: "pesan"}
                 (error.response.data.errors ? JSON.stringify(error.response.data.errors) : // Dari validasi Laravel

@@ -1,17 +1,42 @@
 # Stage 1: Base PHP image with necessary extensions
 FROM php:8.2-fpm-alpine AS base_php
 
-LABEL maintainer="Nama Anda <emailanda@example.com>"
+LABEL maintainer="VnoT <noreply.vnot@gmail.com>"
 WORKDIR /var/www/html
 
 # Install system dependencies (seperti sebelumnya)
 RUN apk update && apk add --no-cache \
-    build-base shadow linux-headers autoconf automake libtool pkgconfig \
-    curl libzip-dev zip unzip libpng-dev libjpeg-turbo-dev freetype-dev \
-    icu-dev oniguruma-dev mariadb-client \
+    build-base \
+    shadow \
+    linux-headers \
+    autoconf \
+    automake \
+    libtool \
+    pkgconfig \
+    curl \
+    libzip-dev \
+    zip \
+    unzip \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    icu-dev \
+    oniguruma-dev \
+    mariadb-client \
+    # Dependensi untuk Imagick
+    imagemagick-dev \
+    imagemagick \
+    # Ghostscript mungkin diperlukan untuk beberapa format seperti PDF
+    ghostscript \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) gd \
-    && docker-php-ext-install pdo pdo_mysql zip bcmath intl opcache exif sockets pcntl
+    # Instal Imagick menggunakan pecl
+    && pecl install imagick \
+    && docker-php-ext-enable imagick \
+    # Instal ekstensi lain yang dibutuhkan
+    && docker-php-ext-install pdo pdo_mysql zip bcmath intl opcache exif sockets pcntl \
+    # Bersihkan cache apk setelah instalasi
+    && rm -rf /var/cache/apk/*
 
 # Install Composer
 COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
@@ -35,6 +60,8 @@ RUN composer dump-autoload --optimize --no-dev
 #   (Hapus --classmap-authoritative untuk dev jika dirasa perlu)
 
 # 5. Jalankan package:discover
+RUN php artisan package:discover --ansi
+RUN php artisan config:clear
 RUN php artisan package:discover --ansi
 
 # Expose port PHP-FPM
