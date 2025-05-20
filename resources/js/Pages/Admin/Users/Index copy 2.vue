@@ -41,7 +41,7 @@ const formatDate = (dateString) => {
 const openEditUserModal = (user) => {
     // editingUser.value = user;
     // showEditUserModal.value = true;
-    console.log('TODO: Buka modal edit untuk user:', user.name);
+    // console.log('TODO: Buka modal edit untuk user:', user.name);
     // Untuk sekarang, kita bisa arahkan ke rute edit jika sudah ada
     // router.get(route('admin.users.edit', user.id));
 };
@@ -49,7 +49,7 @@ const openEditUserModal = (user) => {
 const openDeleteUserModal = (user) => {
     // userToDelete.value = user;
     // confirmingUserDeletion.value = true;
-    console.log('TODO: Buka modal hapus untuk user:', user.name);
+    // console.log('TODO: Buka modal hapus untuk user:', user.name);
 };
 
 </script>

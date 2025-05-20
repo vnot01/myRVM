@@ -40,10 +40,10 @@ const props = defineProps({
 
 // Log props saat komponen di-setup (dijalankan sekali)
 // Computed property untuk mengubah array string menjadi array objek
-// console.log('Prop users di Create.vue:', JSON.parse(JSON.stringify(props.users)));
-console.log('[Create.vue] Props diterima:', JSON.parse(JSON.stringify(props)));
-console.log('[Create.vue] availableRoles dari props:', JSON.parse(JSON.stringify(props.availableRoles)));
-console.log('[Create.vue] availableRolesProp di Create.vue:', JSON.parse(JSON.stringify(props.availableRolesProp)));
+// // console.log('Prop users di Create.vue:', JSON.parse(JSON.stringify(props.users)));
+// console.log('[Create.vue] Props diterima:', JSON.parse(JSON.stringify(props)));
+// console.log('[Create.vue] availableRoles dari props:', JSON.parse(JSON.stringify(props.availableRoles)));
+// console.log('[Create.vue] availableRolesProp di Create.vue:', JSON.parse(JSON.stringify(props.availableRolesProp)));
 const roleOptionsForSelectInput = computed(() => {
     if (!props.availableRolesProp) return [];
     return props.availableRolesProp.map(role => ({ value: role, label: role }));
@@ -64,14 +64,14 @@ const form = useForm({
     email_verified_manually: false,
 });
 // --- LOGIKA BARU UNTUK IDENTITY ---
-// console.log('[Create.vue] availableRoles dari props:', JSON.parse(JSON.stringify(props.availableRoles)));
+// // console.log('[Create.vue] availableRoles dari props:', JSON.parse(JSON.stringify(props.availableRoles)));
 // Logika kondisional untuk Tipe Identitas (sama seperti Create.vue)
 const citizenshipOptions = ref([
     { value: 'WNI', label: 'WNI (Warga Negara Indonesia)' },
     { value: 'WNA', label: 'WNA (Warga Negara Asing)' },
 ]);
 
-console.log('[Create.vue] citizenshipOptions dari props:', JSON.parse(JSON.stringify(citizenshipOptions)));
+// console.log('[Create.vue] citizenshipOptions dari props:', JSON.parse(JSON.stringify(citizenshipOptions)));
 const identityTypeOptions = computed(() => {
     if (form.citizenship === 'WNI') {
         return ['KTP', 'Pasport'];

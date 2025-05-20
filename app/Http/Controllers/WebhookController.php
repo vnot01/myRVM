@@ -35,26 +35,26 @@ class WebhookController extends Controller
 
         // 2. Verifikasi Event (Pastikan hanya event 'push' yang diproses)
         $githubEvent = $request->header('X-GitHub-Event');
-        Log::info('GitHub Webhook Event Received:', ['event' => $githubEvent]);
+        Log::Log::info('GitHub Webhook Event Received:', ['event' => $githubEvent]);
 
         if ($githubEvent === 'ping') {
-            Log::info('GitHub Webhook: Ping event received successfully.');
+            Log::Log::info('GitHub Webhook: Ping event received successfully.');
             return response()->json(['message' => 'pong']);
         }
 
         if ($githubEvent !== 'push') {
-            Log::info('GitHub Webhook: Ignoring event.', ['event' => $githubEvent]);
+            Log::Log::info('GitHub Webhook: Ignoring event.', ['event' => $githubEvent]);
             return response()->json(['message' => 'Event ignored.']);
         }
 
         // 3. (Opsional) Verifikasi Branch (jika Anda hanya ingin update dari branch tertentu)
         $payload = $request->json()->all();
         $ref = $payload['ref'] ?? '';
-        Log::info('GitHub Webhook: Push event details.', ['ref' => $ref]);
+        Log::Log::info('GitHub Webhook: Push event details.', ['ref' => $ref]);
 
         // Contoh: Hanya update jika push ke branch 'main' atau 'master'
         if (!Str::endsWith($ref, '/main') && !Str::endsWith($ref, '/master')) {
-            Log::info('GitHub Webhook: Push event not for main/master branch. Ignoring.', ['ref' => $ref]);
+            Log::Log::info('GitHub Webhook: Push event not for main/master branch. Ignoring.', ['ref' => $ref]);
             return response()->json(['message' => 'Push not to main/master branch.']);
         }
 
@@ -66,7 +66,7 @@ class WebhookController extends Controller
             return response()->json(['message' => 'Update script not found on server.'], 500);
         }
 
-        Log::info('GitHub Webhook: Attempting to execute update script.', ['script' => $scriptPath]);
+        Log::Log::info('GitHub Webhook: Attempting to execute update script.', ['script' => $scriptPath]);
 
         // Jalankan skrip di background agar request webhook cepat kembali
         // Redirect output ke file log agar bisa dicek
@@ -79,7 +79,7 @@ class WebhookController extends Controller
         // Untuk menjalankan secara asinkron (lebih baik untuk webhook)
         try {
             $process->start();
-            Log::info('GitHub Webhook: Update script started in background.', ['pid' => $process->getPid()]);
+            Log::Log::info('GitHub Webhook: Update script started in background.', ['pid' => $process->getPid()]);
             // Anda bisa menyimpan PID jika perlu memantau prosesnya, tapi untuk sekarang cukup log
         } catch (\Exception $e) {
             Log::error('GitHub Webhook: Failed to start update script.', ['error' => $e->getMessage()]);

@@ -24,7 +24,7 @@ const safeJsonParse = (jsonString, defaultValue = null) => {
         const parsed = JSON.parse(jsonString);
         return parsed;
     } catch (e) {
-        console.warn("Failed to parse JSON string:", jsonString, e);
+        // console.warn("Failed to parse JSON string:", jsonString, e);
         return defaultValue;
     }
 };
@@ -401,7 +401,7 @@ const submitTestPrompt = async () => {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
         testResult.value = response.data;
-        console.log('Test Prompt Result:', response.data);
+        // console.log('Test Prompt Result:', response.data);
     } catch (error) {
         console.error('Error testing prompt:', error);
         if (error.response && error.response.data) { // Cek error.response.data dulu

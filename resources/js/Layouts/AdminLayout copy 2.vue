@@ -19,21 +19,21 @@ defineProps({
     title: String,
 });
 
-console.log('AdminLayout.vue: Komponen sedang di-setup.'); // Akan muncul saat komponen pertama kali dibuat
-console.log('AdminLayout.vue: Initial page props:', page.props); // Lihat semua props awal
+// console.log('AdminLayout.vue: Komponen sedang di-setup.'); // Akan muncul saat komponen pertama kali dibuat
+// console.log('AdminLayout.vue: Initial page props:', page.props); // Lihat semua props awal
 
 onMounted(() => {
-  console.log('AdminLayout.vue: Komponen sudah di-mount ke DOM.');
+  // console.log('AdminLayout.vue: Komponen sudah di-mount ke DOM.');
 });
 
 onUpdated(() => {
-  console.log('AdminLayout.vue: Komponen di-update (karena props berubah, dll).');
-  console.log('AdminLayout.vue: Current page.props.flash (onUpdated):', page.props.flash);
+  // console.log('AdminLayout.vue: Komponen di-update (karena props berubah, dll).');
+  // console.log('AdminLayout.vue: Current page.props.flash (onUpdated):', page.props.flash);
 });
 watch(() => page.props.flash, (newFlashValue, oldFlashValue) => {
-  console.log('AdminLayout.vue: Watcher page.props.flash terpicu.');
-  console.log('AdminLayout.vue: Flash Baru:', newFlashValue);
-  console.log('AdminLayout.vue: Flash Lama:', oldFlashValue);
+  // console.log('AdminLayout.vue: Watcher page.props.flash terpicu.');
+  // console.log('AdminLayout.vue: Flash Baru:', newFlashValue);
+  // console.log('AdminLayout.vue: Flash Lama:', oldFlashValue);
   const MAX_FLASH_LENGTH = 50; // Contoh batas karakter
 
   if (newFlashValue && (newFlashValue.success || newFlashValue.error)) {
@@ -45,13 +45,13 @@ watch(() => page.props.flash, (newFlashValue, oldFlashValue) => {
         flashMessageType.value = 'error';
     }
     showFlashMessage.value = true;
-    console.log('AdminLayout.vue: showFlashMessage di-set:', showFlashMessage.value, 'Teks:', flashMessageText.value, 'Tipe:', flashMessageType.value);
+    // console.log('AdminLayout.vue: showFlashMessage di-set:', showFlashMessage.value, 'Teks:', flashMessageText.value, 'Tipe:', flashMessageType.value);
     setTimeout(() => {
       showFlashMessage.value = false;
     }, 5000);
   } else {
     // Ini bisa terjadi jika flash di-clear atau tidak ada
-    console.log('AdminLayout.vue: Flash tidak memiliki pesan success/error, atau null.');
+    // console.log('AdminLayout.vue: Flash tidak memiliki pesan success/error, atau null.');
   }
 }, { deep: true, immediate: true });
 </script>

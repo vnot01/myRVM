@@ -28,9 +28,9 @@ const currentPage = ref(props.users && props.users.meta ? props.users.meta.curre
 const lastPage = ref(props.users && props.users.meta ? props.users.meta.last_page : 1);
 const isLoadingMore = ref(false);
 
-console.log('Prop users di Index.vue:', JSON.parse(JSON.stringify(props.users)));
-console.log('Prop availableRolesProp di Index.vue:', JSON.parse(JSON.stringify(props.availableRolesProp)));
-console.log('Prop availableRoles di Index.vue:', JSON.parse(JSON.stringify(props.availableRoles)));
+// console.log('Prop users di Index.vue:', JSON.parse(JSON.stringify(props.users)));
+// console.log('Prop availableRolesProp di Index.vue:', JSON.parse(JSON.stringify(props.availableRolesProp)));
+// console.log('Prop availableRoles di Index.vue:', JSON.parse(JSON.stringify(props.availableRoles)));
 const searchTerm = ref(props.filters.search || '');
 watch(searchTerm, debounce((newValue) => {
     router.get(route('admin.users.index'), {
@@ -52,7 +52,7 @@ const formatDate = (dateString) => {
 const openEditUserModal = (user) => {
     // editingUser.value = user;
     // showEditUserModal.value = true;
-    console.log('TODO: Buka modal edit untuk user:', user.name);
+    // console.log('TODO: Buka modal edit untuk user:', user.name);
     // Untuk sekarang, kita bisa arahkan ke rute edit jika sudah ada
     // router.get(route('admin.users.edit', user.id));
 };
@@ -60,7 +60,7 @@ const openEditUserModal = (user) => {
 const openDeleteUserModal = (user) => {
     // userToDelete.value = user;
     // confirmingUserDeletion.value = true;
-    console.log('TODO: Buka modal hapus untuk user:', user.name);
+    // console.log('TODO: Buka modal hapus untuk user:', user.name);
 };
 
 const submit = () => {
@@ -76,10 +76,10 @@ const submit = () => {
     });
 };
 const testClickAndNavigate = () => {
-    console.log('Tombol Test Diklik! Mencoba navigasi...');
+    // console.log('Tombol Test Diklik! Mencoba navigasi...');
     try {
         const targetRoute = route('admin.users.create'); // Cek apakah ini menghasilkan URL yang benar
-        console.log('Target URL:', targetRoute);
+        // console.log('Target URL:', targetRoute);
         router.get(targetRoute); // Atau router.get(targetRoute);
     } catch (e) {
         console.error('Error saat memanggil route() atau router.visit():', e);

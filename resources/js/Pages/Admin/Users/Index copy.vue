@@ -19,7 +19,7 @@ const props = defineProps({
     availableRolesProp: Array, // Ganti nama agar tidak konflik dengan computed
     availableStatuses: Array, // Ganti nama agar tidak konflik dengan computed
 });
-// console.log('Prop users di Index.vue:', JSON.parse(JSON.stringify(props.users)));
+// // console.log('Prop users di Index.vue:', JSON.parse(JSON.stringify(props.users)));
 const searchTerm = ref(props.filters.search || '');
 
 // Watcher untuk searchTerm dengan debounce
@@ -121,10 +121,10 @@ const viewUserDetails = (user) => {
 };
 
 const testClickAndNavigate = () => {
-    console.log('Tombol Test Diklik! Mencoba navigasi...');
+    // console.log('Tombol Test Diklik! Mencoba navigasi...');
     try {
         const targetRoute = route('admin.users.create'); // Cek apakah ini menghasilkan URL yang benar
-        console.log('Target URL:', targetRoute);
+        // console.log('Target URL:', targetRoute);
         router.get(targetRoute); // Atau router.get(targetRoute);
     } catch (e) {
         console.error('Error saat memanggil route() atau router.visit():', e);

@@ -29,15 +29,15 @@ const formatDate = (dateString) => {
 
 // Fungsi placeholder untuk aksi, akan diimplementasikan nanti
 const activateTemplate = (templateId) => {
-    console.log('TODO: Activate template ID:', templateId);
+    // console.log('TODO: Activate template ID:', templateId);
     // router.post(route('admin.prompt-templates.activate', templateId), {}, { preserveScroll: true });
 };
 const editTemplate = (templateId) => {
-    console.log('TODO: Edit template ID:', templateId);
+    // console.log('TODO: Edit template ID:', templateId);
     // router.get(route('admin.prompt-templates.edit', templateId));
 };
 const deleteTemplate = (templateId, templateName) => {
-    console.log('TODO: Delete template ID:', templateId, 'Name:', templateName);
+    // console.log('TODO: Delete template ID:', templateId, 'Name:', templateName);
     // if (confirm(`Apakah Anda yakin ingin menghapus template "${templateName}"?`)) {
     //     router.delete(route('admin.prompt-templates.destroy', templateId), { preserveScroll: true });
     // }

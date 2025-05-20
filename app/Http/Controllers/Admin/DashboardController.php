@@ -13,6 +13,7 @@ use Illuminate\Support\Str; // Import Str helper
 use Inertia\Inertia;
 use Carbon\Carbon;
 
+
 class DashboardController extends Controller
 {
     // Fungsi helper untuk memformat label
@@ -24,8 +25,73 @@ class DashboardController extends Controller
         return Str::title(str_replace('_', ' ', strtolower($label)));
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        $selectedRange = $request->input('range', '7days'); // Default ke 7 hari jika tidak ada parameter
+
+        // Tentukan tanggal mulai berdasarkan rentang yang dipilih
+        $startDate = now()->startOfDay(); // Default untuk 'today' atau jika tidak cocok
+        $endDate = now()->endOfDay();
+
+        switch ($selectedRange) {
+            case 'today':
+                $startDate = now()->startOfDay();
+                break;
+            case '7days':
+                $startDate = now()->subDays(6)->startOfDay();
+                break;
+            case '30days':
+                $startDate = now()->subDays(29)->startOfDay();
+                break;
+            case 'this_month':
+                $startDate = now()->startOfMonth()->startOfDay();
+                break;
+            case 'last_month':
+                $startDate = now()->subMonthNoOverflow()->startOfMonth()->startOfDay();
+                $endDate = now()->subMonthNoOverflow()->endOfMonth()->endOfDay();
+                break;
+            // Anda bisa tambahkan case lain seperti 'this_year', 'custom_range' (jika perlu date picker)
+            default: // Default ke 7 hari jika $selectedRange tidak dikenal
+                $selectedRange = '7days'; // Set ulang untuk dikirim balik ke view
+                $startDate = now()->subDays(6)->startOfDay();
+                break;
+        }
+        $depositsInRange = Deposit::whereBetween('deposited_at', [$startDate, $endDate]);
+        $rangeDepositsCount = (clone $depositsInRange)->count(); // Clone agar query asli tidak termodifikasi
+        $rangePointsAwarded = (int) (clone $depositsInRange)->sum('points_awarded');
+        // Data untuk Grafik Garis (Line Chart) - SESUAIKAN DENGAN RENTANG WAKTU
+        $dailyActivity = Deposit::select(
+            DB::raw('DATE(deposited_at) as date'),
+            DB::raw('count(*) as total_deposits'),
+            DB::raw('sum(points_awarded) as total_points')
+        )
+            ->whereBetween('deposited_at', [$startDate, $endDate]) // Filter berdasarkan rentang
+            ->groupBy('date')
+            ->orderBy('date', 'asc')
+            ->get();
+
+        $labels = $dailyActivity->pluck('date')->map(function ($date) {
+            return Carbon::parse($date)->isoFormat('dd, D MMM');
+        })->all();
+        $depositCounts = $dailyActivity->pluck('total_deposits')->all();
+        $pointSums = $dailyActivity->pluck('total_points')->map(fn($val) => (int) $val)->all();
+
+        // Data untuk Diagram Lingkaran (Pie Chart) - SESUAIKAN DENGAN RENTANG WAKTU
+        $itemDistribution = Deposit::select('detected_type', DB::raw('count(*) as total'))
+            ->whereNotNull('detected_type')
+            ->where('detected_type', '!=', '')
+            ->whereBetween('deposited_at', [$startDate, $endDate]) // Filter berdasarkan rentang
+            ->groupBy('detected_type')
+            ->orderBy('total', 'desc')
+            ->limit(5)
+            ->get();
+
+        // ... (sisa kode untuk $pieChartLabels, $pieChartData, $pieChartColors) ...
+        $pieChartLabels = $itemDistribution->pluck('detected_type')->map(function ($type) {
+            return $this->formatLabel($type);
+        })->all();
+        $pieChartData = $itemDistribution->pluck('total')->all();
+
         // Statistik RVM
         $totalRvms = ReverseVendingMachine::count();
         $activeRvms = ReverseVendingMachine::where('status', 'active')->count();
@@ -48,14 +114,14 @@ class DashboardController extends Controller
 
         // Informasi Prompt Aktif
         $activePrompt = ConfiguredPrompt::where('is_active', true)
-                            ->first(['id', 'configured_prompt_name', 'version', 'estimated_confidence_score']);
+            ->first(['id', 'configured_prompt_name', 'version', 'estimated_confidence_score']);
 
         // Data untuk Grafik Garis (Line Chart)
         $dailyActivity = Deposit::select(
-                DB::raw('DATE(deposited_at) as date'),
-                DB::raw('count(*) as total_deposits'),
-                DB::raw('sum(points_awarded) as total_points')
-            )
+            DB::raw('DATE(deposited_at) as date'),
+            DB::raw('count(*) as total_deposits'),
+            DB::raw('sum(points_awarded) as total_points')
+        )
             ->where('deposited_at', '>=', now()->subDays(6)->startOfDay())
             ->groupBy('date')
             ->orderBy('date', 'asc')
@@ -66,22 +132,22 @@ class DashboardController extends Controller
         })->all();
 
         $depositCounts = $dailyActivity->pluck('total_deposits')->all();
-        $pointSums = $dailyActivity->pluck('total_points')->map(fn($val) => (int)$val)->all();
+        $pointSums = $dailyActivity->pluck('total_points')->map(fn($val) => (int) $val)->all();
 
-        // Data untuk Diagram Lingkaran (Pie Chart) Distribusi Jenis Item
-        $itemDistribution = Deposit::select('detected_type', DB::raw('count(*) as total')) // <-- DIUBAH KE detected_type
-            ->whereNotNull('detected_type')    // <-- DIUBAH KE detected_type
-            ->where('detected_type', '!=', '') // <-- DIUBAH KE detected_type
-            ->groupBy('detected_type')         // <-- DIUBAH KE detected_type
-            ->orderBy('total', 'desc')
-            ->limit(5)
-            ->get();
+        // // Data untuk Diagram Lingkaran (Pie Chart) Distribusi Jenis Item
+        // $itemDistribution = Deposit::select('detected_type', DB::raw('count(*) as total')) // <-- DIUBAH KE detected_type
+        //     ->whereNotNull('detected_type')    // <-- DIUBAH KE detected_type
+        //     ->where('detected_type', '!=', '') // <-- DIUBAH KE detected_type
+        //     ->groupBy('detected_type')         // <-- DIUBAH KE detected_type
+        //     ->orderBy('total', 'desc')
+        //     ->limit(5)
+        //     ->get();
 
-        $pieChartLabels = $itemDistribution->pluck('detected_type')->map(function ($type) { // <-- DIUBAH KE detected_type
-            return $this->formatLabel($type);
-        })->all();
+        // $pieChartLabels = $itemDistribution->pluck('detected_type')->map(function ($type) { // <-- DIUBAH KE detected_type
+        //     return $this->formatLabel($type);
+        // })->all();
 
-        $pieChartData = $itemDistribution->pluck('total')->all();
+        // $pieChartData = $itemDistribution->pluck('total')->all();
 
         $pieChartColors = [
             'rgba(255, 99, 132, 0.7)',
@@ -106,6 +172,8 @@ class DashboardController extends Controller
                 'weekPointsAwarded' => $weekPointsAwarded,
                 'monthDepositsCount' => $monthDepositsCount,
                 'monthPointsAwarded' => $monthPointsAwarded,
+                'rangeDepositsCount' => $rangeDepositsCount, // Statistik deposit untuk rentang terpilih
+                'rangePointsAwarded' => $rangePointsAwarded, // Statistik poin untuk rentang terpilih
             ],
             'activePromptInfo' => $activePrompt ? [
                 'name' => $activePrompt->configured_prompt_name,
@@ -147,7 +215,15 @@ class DashboardController extends Controller
                         'data' => $pieChartData,
                     ]
                 ]
-            ]
+            ],
+            'currentRange' => $selectedRange, // Kirim rentang waktu yang aktif ke view
+            'availableRanges' => [ // Opsi rentang waktu untuk dropdown/tombol
+                ['value' => 'today', 'label' => 'Hari Ini'],
+                ['value' => '7days', 'label' => '7 Hari Terakhir'],
+                ['value' => '30days', 'label' => '30 Hari Terakhir'],
+                ['value' => 'this_month', 'label' => 'Bulan Ini'],
+                ['value' => 'last_month', 'label' => 'Bulan Lalu'],
+            ],
         ]);
     }
 }

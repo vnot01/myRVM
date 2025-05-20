@@ -99,7 +99,7 @@ const assembleFullPrompt = () => {
         form.output_instructions_segment = assembleOutputInstructionsSegmentFromKeyValue(form.outputJsonFieldsManual);
         form.full_prompt_text_generated = `Target: ${form.target_prompt_segment}\nCondition: ${form.condition_prompt_segment}\nLabel Guidance: ${form.label_guidance_segment}\nOutput Instructions: ${form.output_instructions_segment}`;
     }
-    console.log('[assembleFullPrompt] Generated:', form.full_prompt_text_generated);
+    // console.log('[assembleFullPrompt] Generated:', form.full_prompt_text_generated);
 };
 
 // immediate true agar assembleFullPrompt dipanggil saat load awal jika ada template terpilih
@@ -231,7 +231,7 @@ const submitTestPrompt = async () => {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
         testResult.value = response.data;
-        console.log('Test Prompt Result:', response.data);
+        // console.log('Test Prompt Result:', response.data);
     } catch (error) {
         console.error('Error testing prompt:', error);
         if (error.response && error.response.data) { // Cek error.response.data dulu

@@ -109,7 +109,7 @@ const handleScroll = debounce(() => {
 }, 150);
 
 const editTemplate = (templateId) => {
-    console.log('Index.vue: Attempting to edit template with ID:', templateId); // <-- LOG ID
+    // console.log('Index.vue: Attempting to edit template with ID:', templateId); // <-- LOG ID
     router.get(route('admin.prompt-templates.edit', templateId));
 };
 // --- Fungsi BARU untuk Modal Hapus Template ---
@@ -127,8 +127,12 @@ const confirmAndDeleteTemplate = () => {
     const deletedTemplateName = templateToDelete.value.template_name;
     deleteTemplateForm.delete(route('admin.prompt-templates.destroy', templateToDelete.value.id), {
         preserveScroll: true,
-        onSuccess: () => { closeDeleteTemplateModal(); console.log(`Template "${deletedTemplateName}" dihapus.`); },
-        onError: (errors) => { console.error('Gagal hapus:', errors); }
+        onSuccess: () => { closeDeleteTemplateModal(); 
+            // console.log(`Template "${deletedTemplateName}" dihapus.`); 
+        },
+        onError: (errors) => { 
+            // console.error('Gagal hapus:', errors); 
+        }
     });
 };
 // --- AKHIR FUNGSI MODAL HAPUS ---

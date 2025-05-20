@@ -166,7 +166,7 @@ const confirmAndDeletePrompt = () => { // Ganti nama fungsi
         deleteForm.delete(route('admin.configured-prompts.destroy', promptToDelete.value.id), {
             preserveScroll: true,
             onSuccess: () => {
-                console.log(`Konfigurasi prompt "${deletedPromptName}" proses hapus berhasil dikirim.`);
+                // console.log(`Konfigurasi prompt "${deletedPromptName}" proses hapus berhasil dikirim.`);
                 closeDeleteModal();
                 // Daftar akan otomatis refresh karena redirect dari backend & watcher props.configuredPrompts
             },

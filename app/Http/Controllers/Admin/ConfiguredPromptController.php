@@ -167,7 +167,7 @@ class ConfiguredPromptController extends Controller
             'label_guidance_segment' => 'required_without:prompt_template_id|nullable|string',
             'output_instructions_segment' => 'required_without:prompt_template_id|nullable|string',
         ]);
-        info('[ConfiguredPromptUpdate] Validation passed. Data for ID: ' . $configuredPrompt->id, $validated);
+        Log::info('[ConfiguredPromptUpdate] Validation passed. Data for ID: ' . $configuredPrompt->id, $validated);
         DB::beginTransaction();
         try {
             $generationConfigFinal = json_decode($validated['generation_config_final_json'], true);
@@ -192,7 +192,7 @@ class ConfiguredPromptController extends Controller
                 'version' => $newVersionNumber,
                 'root_configured_prompt_id' => $rootPromptId,
             ]);
-            info('[ConfiguredPromptUpdate] New version created.', ['id' => $newVersionPrompt->id, 'version' => $newVersionNumber, 'root_id' => $rootPromptId]);
+            Log::info('[ConfiguredPromptUpdate] New version created.', ['id' => $newVersionPrompt->id, 'version' => $newVersionNumber, 'root_id' => $rootPromptId]);
             // Hapus mapping lama dari versi SEBELUMNYA jika Anda tidak ingin menumpuk
             $configuredPrompt->componentMappings()->delete(); // Atau update mapping dari $newVersionPrompt
 
@@ -207,7 +207,7 @@ class ConfiguredPromptController extends Controller
                 }
                 if (!empty($mappingsToCreate)) {
                     $newVersionPrompt->componentMappings()->createMany($mappingsToCreate);
-                    info('[ConfiguredPromptUpdate] Component mappings created for new version.', ['count' => count($mappingsToCreate)]);
+                    Log::info('[ConfiguredPromptUpdate] Component mappings created for new version.', ['count' => count($mappingsToCreate)]);
                 }
             }
 
@@ -244,7 +244,7 @@ class ConfiguredPromptController extends Controller
         //     return response()->json(['error' => 'Unauthorized'], 403);
         // }
 
-        info('[TestPrompt] Received request to test prompt with image and prompt.');
+        Log::info('[TestPrompt] Received request to test prompt with image and prompt.');
         $validator = Validator::make($request->all(), [
             'image' => 'required|image|mimes:jpeg,png,jpg|max:5120',
             'full_prompt' => 'required|string', // Menerima full_prompt yang sudah dirakit
@@ -260,9 +260,9 @@ class ConfiguredPromptController extends Controller
         $fullPrompt = $request->input('full_prompt');
         $generationConfigJson = $request->input('generation_config_json'); // Ini adalah STRING JSON
         $generationConfig = null;
-        // info('[TestPrompt] String JSON Config:', ['config_string' => $generationConfigJson]);
+        // Log::info('[TestPrompt] String JSON Config:', ['config_string' => $generationConfigJson]);
         // Log input dengan benar
-        // info('[TestPrompt] Received raw inputs:', [
+        // Log::info('[TestPrompt] Received raw inputs:', [
         //     'has_image' => $request->hasFile('image'),
         //     'full_prompt_length' => strlen($fullPrompt),
         //     'generation_config_json_string' => $generationConfigJson // Log string JSON sebagai bagian dari array konteks
@@ -272,14 +272,14 @@ class ConfiguredPromptController extends Controller
             $decodedConfig = json_decode($generationConfigJson, true);
             if (json_last_error() === JSON_ERROR_NONE && is_array($decodedConfig)) {
                 $generationConfig = $decodedConfig;
-                // info('[TestPrompt] Parsed generation_config:', ['json_string' => $generationConfigJson]); // $generationConfig sekarang array, jadi ini benar
+                // Log::info('[TestPrompt] Parsed generation_config:', ['json_string' => $generationConfigJson]); // $generationConfig sekarang array, jadi ini benar
             } else {
                 Log::warning('[TestPrompt] Invalid JSON for generation_config', ['json_string' => $generationConfigJson]);
                 // return response()->json(['error' => 'Format JSON untuk Generation Config tidak valid.'], 400); // Pertimbangkan ini
             }
         }
 
-        info('[TestPrompt] Testing with received prompt and config.', [
+        Log::info('[TestPrompt] Testing with received prompt and config.', [
             'prompt_length' => strlen($fullPrompt),
             'has_gen_config' => !is_null($generationConfig)
         ]);
@@ -291,10 +291,10 @@ class ConfiguredPromptController extends Controller
                 $generationConfig // Ini sudah array atau null
             );
 
-            // info('[TestPrompt] : curl_error = ',$results['curl_error']);
-            // info('[TestPrompt] : http_code = ',$results['http_code']);
-            // info('[TestPrompt] : parsed_data = ',$results['parsed_data']);
-            // info('[TestPrompt] : raw_text = ',$results['raw_text']);
+            // Log::info('[TestPrompt] : curl_error = ',$results['curl_error']);
+            // Log::info('[TestPrompt] : http_code = ',$results['http_code']);
+            // Log::info('[TestPrompt] : parsed_data = ',$results['parsed_data']);
+            // Log::info('[TestPrompt] : raw_text = ',$results['raw_text']);
             // Periksa hasil dari service
             if (isset($results['curl_error']) && $results['curl_error']) {
                  return response()->json(['error' => 'Gagal menghubungi Gemini API: ' . $results['curl_error']], 500);
@@ -332,7 +332,7 @@ class ConfiguredPromptController extends Controller
             // Hapus mapping dulu jika ada dan jika relasi tidak di-set onDelete('cascade') untuk mapping
             $configuredPrompt->componentMappings()->delete(); // Jika perlu
             $configuredPrompt->delete();
-            info('ConfiguredPrompt deleted.', ['id' => $configuredPrompt->id, 'name' => $promptName, 'admin_id' => Auth::id()]);
+            Log::info('ConfiguredPrompt deleted.', ['id' => $configuredPrompt->id, 'name' => $promptName, 'admin_id' => Auth::id()]);
             return redirect()->route('admin.configured-prompts.index')
                 ->with('success', "Konfigurasi prompt \"{$promptName}\" berhasil dihapus/dinonaktifkan.");
             // return redirect()->route('admin.configured-prompts.index')

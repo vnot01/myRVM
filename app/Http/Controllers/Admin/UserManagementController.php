@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\Storage; // <-- Tambahkan Storage facade
 use Illuminate\Support\Str; // Untuk Str::random()
 use App\Models\PointAdjustment;
 use Illuminate\Support\Facades\DB; 
-use Barryvdh\Debugbar\Facade as Debugbar;
 
 
 class UserManagementController extends Controller
@@ -63,8 +62,8 @@ class UserManagementController extends Controller
             ['value' => 'verified', 'label' => 'Terverifikasi'],
             ['value' => 'unverified', 'label' => 'Belum Terverifikasi'],
         ];
-        info('Available Roles: :', $availableRoles);
-        info('Statuses: :', $availableStatuses);
+        Log::info('Available Roles: :', $availableRoles);
+        Log::info('Statuses: :', $availableStatuses);
         return Inertia::render('Admin/Users/Index', [
             'users' => $users,
             'filters' => $request->only(['search', 'role', 'status']), // Kirim filter aktif ke Vue
@@ -90,8 +89,8 @@ class UserManagementController extends Controller
 
         // $availableRoles = ['Admin', 'Operator', 'User']; // Sesuaikan dengan role Anda
         // $availableRolesProp = ['Operator', 'User'];
-        // info('Available Roles: :',$availableRoles);
-        // // info('Statuses: :',$availableStatuses);
+        // Log::info('Available Roles: :',$availableRoles);
+        // // Log::info('Statuses: :',$availableStatuses);
         // return Inertia::render('Admin/Users/Create', [
         //     'availableRolesProp' => $availableRolesProp,
         //     `availableRoles` => $availableRoles,
@@ -237,7 +236,7 @@ class UserManagementController extends Controller
             'availableRoles' => $editableRoles,
         ];
 
-        info('data To Pass: :', $dataToPass);
+        Log::info('data To Pass: :', $dataToPass);
 
         return Inertia::render('Admin/Users/Edit', $dataToPass);
     }
@@ -252,9 +251,9 @@ class UserManagementController extends Controller
             abort(403, 'Hanya Admin yang dapat memperbarui pengguna.');
         }
 
-        info('[UserUpdate] Request data received:', $request->all());
+        Log::info('[UserUpdate] Request data received:', $request->all());
         if ($request->hasFile('avatar')) {
-            info('[UserUpdate] Avatar file IS PRESENT in request.');
+            Log::info('[UserUpdate] Avatar file IS PRESENT in request.');
         }
 
         // 1. Definisikan Aturan Validasi Dasar
@@ -320,7 +319,7 @@ class UserManagementController extends Controller
 
         // 3. Lakukan Validasi
         $validatedData = $request->validate($rules);
-        info('[UserUpdate] Validation passed. Validated data:', $validatedData);
+        Log::info('[UserUpdate] Validation passed. Validated data:', $validatedData);
         DB::beginTransaction(); // Mulai transaksi
         try {
            // Langsung update properti model $user
@@ -368,13 +367,13 @@ class UserManagementController extends Controller
                 }
                 $path = $request->file('avatar')->store('avatars', 'public');
                 $updatePayload['avatar'] = Storage::url($path);
-                info('[UserUpdate] New avatar processed.', ['url' => $updatePayload['avatar']]);
+                Log::info('[UserUpdate] New avatar processed.', ['url' => $updatePayload['avatar']]);
             }
 
             // Handle Password
             if (!empty($validatedData['password'])) {
                 $updatePayload['password'] = Hash::make($validatedData['password']);
-                info('[UserUpdate] Password will be updated.');
+                Log::info('[UserUpdate] Password will be updated.');
                 // TODO: Notifikasi email perubahan password
             }
 
@@ -382,15 +381,15 @@ class UserManagementController extends Controller
             $emailChanged = $user->email !== $validatedData['email'];
             if ($emailChanged) {
                 $updatePayload['email_verified_at'] = null; // Reset verifikasi jika email berubah
-                info('[UserUpdate] Email changed, verification reset.');
+                Log::info('[UserUpdate] Email changed, verification reset.');
                 // TODO: Kirim email verifikasi baru
             } elseif (isset($validatedData['email_verified_manually'])) { // Cek apakah field ini dikirim
                 if ($validatedData['email_verified_manually'] && !$user->email_verified_at) {
                     $updatePayload['email_verified_at'] = now();
-                    info('[UserUpdate] Email manually verified.');
+                    Log::info('[UserUpdate] Email manually verified.');
                 } elseif (!$validatedData['email_verified_manually'] && $user->email_verified_at) {
                     $updatePayload['email_verified_at'] = null; // Admin un-verify
-                    info('[UserUpdate] Email manually un-verified.');
+                    Log::info('[UserUpdate] Email manually un-verified.');
                 }
             }
 
@@ -409,7 +408,7 @@ class UserManagementController extends Controller
                     'new_points' => $newPoints,
                     'reason' => $request->input('points_change_reason', 'Perubahan poin manual oleh ' . Auth::user()->name),
                 ]);
-                info('[UserUpdate] Points adjusted.', ['old' => $previousPoints, 'new' => $newPoints]);
+                Log::info('[UserUpdate] Points adjusted.', ['old' => $previousPoints, 'new' => $newPoints]);
             } else {
                 // Jika poin tidak berubah, tidak perlu masukkannya ke $updatePayload agar tidak trigger event update jika tidak perlu
                 // Namun, karena kita sudah ambil dari $validatedData, tidak masalah.
@@ -419,13 +418,13 @@ class UserManagementController extends Controller
             // 5. Lakukan Update
             // Cek apakah ada perubahan sebelum save untuk efisiensi (opsional)
             if ($user->isDirty()) { // Cek apakah ada field yang berubah
-                info('[UserUpdate] Attempting to save user with points: if ($user->isDirty()) { ', ['points' => $user->points]);
+                Log::info('[UserUpdate] Attempting to save user with points: if ($user->isDirty()) { ', ['points' => $user->points]);
                 $user->save();
-                info('User model saved to DB.', ['user_id' => $user->id, 'changed_fields' => $user->getChanges()]);
+                Log::info('User model saved to DB.', ['user_id' => $user->id, 'changed_fields' => $user->getChanges()]);
             } else {
-                info('No changes detected for user model, save skipped.', ['user_id' => $user->id]);
+                Log::info('No changes detected for user model, save skipped.', ['user_id' => $user->id]);
             }
-            info('User updated successfully in DB.', ['user_id' => $user->id, 'admin_id' => Auth::id()]);
+            Log::info('User updated successfully in DB.', ['user_id' => $user->id, 'admin_id' => Auth::id()]);
 
             DB::commit(); // Commit transaksi
 

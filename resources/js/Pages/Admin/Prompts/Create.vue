@@ -84,7 +84,7 @@ const submitTestPrompt = async () => {
             }
         });
         testResult.value = response.data;
-        console.log('Test Prompt Result:', response.data);
+        // console.log('Test Prompt Result:', response.data);
     } catch (error) {
         console.error('Error testing prompt:', error);
         if (error.response) {

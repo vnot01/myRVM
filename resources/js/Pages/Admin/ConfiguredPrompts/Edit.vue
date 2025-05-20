@@ -24,7 +24,7 @@ const safeJsonParse = (jsonString, defaultValue = null) => {
         const parsed = JSON.parse(jsonString);
         return parsed;
     } catch (e) {
-        console.warn("Failed to parse JSON string in safeJsonParse:", jsonString, e);
+        // console.warn("Failed to parse JSON string in safeJsonParse:", jsonString, e);
         return defaultValue;
     }
 };
@@ -134,12 +134,12 @@ const assembleFullPrompt = () => { let finalOutputInstructions = '';
         form.output_instructions_segment = assembleOutputInstructionsSegmentFromKeyValue(form.outputJsonFieldsManual);
         form.full_prompt_text_generated = `Target: ${form.target_prompt_segment}\nCondition: ${form.condition_prompt_segment}\nLabel Guidance: ${form.label_guidance_segment}\nOutput Instructions: ${form.output_instructions_segment}`;
     }
-    console.log('[assembleFullPrompt] Generated:', form.full_prompt_text_generated);
+    // console.log('[assembleFullPrompt] Generated:', form.full_prompt_text_generated);
 };
 
 // --- Inisialisasi State Form saat Komponen Dimuat ---
 onMounted(() => {
-    console.log('[Edit.vue onMounted] Initializing form with props.configuredPrompt:', JSON.parse(JSON.stringify(props.configuredPrompt)));
+    // console.log('[Edit.vue onMounted] Initializing form with props.configuredPrompt:', JSON.parse(JSON.stringify(props.configuredPrompt)));
 
     // 1. Set Template Dasar
     if (form.prompt_template_id && props.promptTemplates) {
@@ -362,7 +362,7 @@ const submitTestPrompt = async () => {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
         testResult.value = response.data;
-        console.log('Test Prompt Result:', response.data);
+        // console.log('Test Prompt Result:', response.data);
     } catch (error) {
         console.error('Error testing prompt:', error);
         if (error.response && error.response.data) { // Cek error.response.data dulu

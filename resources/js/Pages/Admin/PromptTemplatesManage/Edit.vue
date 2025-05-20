@@ -13,11 +13,11 @@ const props = defineProps({
     errors: Object,
 });
 // Log props saat komponen di-setup
-console.log('[Edit.vue SETUP] props.promptTemplate.template_name:', props.promptTemplate?.template_name);
-console.log('[Edit.vue SETUP] props.promptTemplate.description:', props.promptTemplate?.description);
-console.log('[Edit.vue SETUP] props.promptTemplate.template_string:', props.promptTemplate?.template_string);
-console.log('[Edit.vue SETUP] props.promptTemplate.placeholders_defined_text:', props.promptTemplate?.placeholders_defined_text);
-console.log('[Edit.vue SETUP] props.promptTemplate.created_at:', props.promptTemplate?.created_at);
+// console.log('[Edit.vue SETUP] props.promptTemplate.template_name:', props.promptTemplate?.template_name);
+// console.log('[Edit.vue SETUP] props.promptTemplate.description:', props.promptTemplate?.description);
+// console.log('[Edit.vue SETUP] props.promptTemplate.template_string:', props.promptTemplate?.template_string);
+// console.log('[Edit.vue SETUP] props.promptTemplate.placeholders_defined_text:', props.promptTemplate?.placeholders_defined_text);
+// console.log('[Edit.vue SETUP] props.promptTemplate.created_at:', props.promptTemplate?.created_at);
 
 const form = useForm({
    _method: 'PUT',
@@ -28,9 +28,9 @@ const form = useForm({
     // Ubah array placeholders_defined menjadi string dipisah koma untuk input
     // placeholders_defined_text: (props.promptTemplate?.placeholders_defined || []).join(', '),
 });
-console.log('[EditTemplate.vue SETUP] Received props.promptTemplate:', JSON.parse(JSON.stringify(props.promptTemplate)));
-console.log('[Edit.vue SETUP] Received props.errors:', JSON.parse(JSON.stringify(props.errors)));
-console.log('[Edit.vue SETUP] Initial form data:', JSON.parse(JSON.stringify(form)));
+// console.log('[EditTemplate.vue SETUP] Received props.promptTemplate:', JSON.parse(JSON.stringify(props.promptTemplate)));
+// console.log('[Edit.vue SETUP] Received props.errors:', JSON.parse(JSON.stringify(props.errors)));
+// console.log('[Edit.vue SETUP] Initial form data:', JSON.parse(JSON.stringify(form)));
 const submit = () => {
     form.put(route('admin.prompt-templates.update', props.promptTemplate.id), {
         // onSuccess: () => form.reset(), // Tidak perlu reset di edit biasanya

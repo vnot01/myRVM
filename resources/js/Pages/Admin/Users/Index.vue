@@ -35,36 +35,37 @@ const userToDelete = ref(null);          // Menyimpan objek user yang akan dihap
 const deleteConfirmationName = ref('');  // Untuk input teks konfirmasi nama user
 const deleteForm = useForm({});
 
-const updateLocalUserState = (paginator) => { console.log('[updateLocalUserState] Received paginator:', JSON.parse(JSON.stringify(paginator)));
+const updateLocalUserState = (paginator) => { 
+    // console.log('[updateLocalUserState] Received paginator:', JSON.parse(JSON.stringify(paginator)));
     // Akses langsung properti paginasi dari level atas objek paginator
     if (paginator && paginator.data && typeof paginator.current_page !== 'undefined' && typeof paginator.last_page !== 'undefined') {
         if (paginator.current_page === 1) {
             allUsers.value = paginator.data ? [...paginator.data] : [];
-            console.log('[updateLocalUserState] RESET allUsers (page 1):', allUsers.value.length, 'items');
+            // console.log('[updateLocalUserState] RESET allUsers (page 1):', allUsers.value.length, 'items');
         } else {
             const existingIds = new Set(allUsers.value.map(u => u.id));
             const newUniqueUsers = (paginator.data || []).filter(u => !existingIds.has(u.id));
             allUsers.value.push(...newUniqueUsers);
-            console.log('[updateLocalUserState] ADDED to allUsers:', newUniqueUsers.length, 'new items. Total:', allUsers.value.length);
+            // console.log('[updateLocalUserState] ADDED to allUsers:', newUniqueUsers.length, 'new items. Total:', allUsers.value.length);
         }
         currentPage.value = paginator.current_page;
         lastPage.value = paginator.last_page;
     } else {
-        console.warn('[updateLocalUserState] Invalid paginator structure. Resetting allUsers.');
+        // console.warn('[updateLocalUserState] Invalid paginator structure. Resetting allUsers.');
         allUsers.value = [];
         currentPage.value = 1;
         lastPage.value = 1;
     }
     initialLoadComplete.value = true;
-    console.log('[updateLocalUserState] States updated. initialLoadComplete:', initialLoadComplete.value, 'allUsers.length:', allUsers.value.length, 'currentPage:', currentPage.value, 'lastPage:', lastPage.value);
+    // console.log('[updateLocalUserState] States updated. initialLoadComplete:', initialLoadComplete.value, 'allUsers.length:', allUsers.value.length, 'currentPage:', currentPage.value, 'lastPage:', lastPage.value);
   };
 const loadMoreUsers = () => { 
-  console.log('[loadMoreUsers] Attempting. isLoadingMore:', isLoadingMore.value, 'currentPage:', currentPage.value, 'lastPage:', lastPage.value);
+  // console.log('[loadMoreUsers] Attempting. isLoadingMore:', isLoadingMore.value, 'currentPage:', currentPage.value, 'lastPage:', lastPage.value);
     if (isLoadingMore.value || !initialLoadComplete.value || currentPage.value >= lastPage.value) {
         return;
     }
     isLoadingMore.value = true;
-    console.log(`[loadMoreUsers] Loading page ${currentPage.value + 1}...`);
+    // console.log(`[loadMoreUsers] Loading page ${currentPage.value + 1}...`);
 
     router.get(route('admin.users.index'), {
         search: searchTerm.value,
@@ -72,12 +73,12 @@ const loadMoreUsers = () => {
     }, {
         preserveState: true, preserveScroll: true, replace: true,
         onSuccess: (page) => {
-            console.log('[loadMoreUsers onSuccess] More users loaded. Page props:', JSON.parse(JSON.stringify(page.props.users)));
+            // console.log('[loadMoreUsers onSuccess] More users loaded. Page props:', JSON.parse(JSON.stringify(page.props.users)));
             if (page.props.users && page.props.users.data) {
                 const existingIds = new Set(allUsers.value.map(u => u.id));
                 const newUniqueUsers = page.props.users.data.filter(u => !existingIds.has(u.id));
                 allUsers.value.push(...newUniqueUsers);
-                console.log('[loadMoreUsers onSuccess] Added to allUsers:', newUniqueUsers.length, 'new items. Total:', allUsers.value.length);
+                // console.log('[loadMoreUsers onSuccess] Added to allUsers:', newUniqueUsers.length, 'new items. Total:', allUsers.value.length);
             }
             // Update currentPage dan lastPage dari respons baru
             if (page.props.users && typeof page.props.users.current_page !== 'undefined' && typeof page.props.users.last_page !== 'undefined') {
@@ -116,7 +117,7 @@ onUnmounted(() => {
     }
 });
 watch(searchTerm, debounce((newValue) => { 
-  console.log('[watch searchTerm] New search term:', newValue);
+  // console.log('[watch searchTerm] New search term:', newValue);
     isLoadingMore.value = false;
     router.get(route('admin.users.index'), {
         search: newValue,
@@ -133,7 +134,7 @@ watch(searchTerm, debounce((newValue) => {
 watch(() => props.users, (newPaginator) => { updateLocalUserState(newPaginator); }, { deep: true });
 
 const formatDate = (dateString) => { 
-  console.log('[watch props.users] props.users changed. New current_page:', newPaginator?.current_page);
+  // console.log('[watch props.users] props.users changed. New current_page:', newPaginator?.current_page);
   updateLocalUserState(newPaginator); // Panggil update setiap kali props.users berubah
  };
 const formatDateNow = (dateString) => { /* ... (fungsi Anda) ... */
@@ -142,18 +143,18 @@ const formatDateNow = (dateString) => { /* ... (fungsi Anda) ... */
     return new Date(dateString).toLocaleDateString('id-ID', options);
 };
 const openEditUserModal = (user) => {
-    console.log('Mengarahkan ke halaman edit untuk user:', user.name, 'ID:', user.id);
+    // console.log('Mengarahkan ke halaman edit untuk user:', user.name, 'ID:', user.id);
     router.get(route('admin.users.edit', user.id)); // Gunakan user.id
 };
 const openDeleteUserModal = (user) => { 
-    console.log('TODO: Hapus user:', user.name); 
+    // console.log('TODO: Hapus user:', user.name); 
     router.get(route('admin.users.destroy', user.id));
 };
 const openDeleteConfirmationModal = (user) => {
     userToDelete.value = user;
     deleteConfirmationName.value = ''; // Reset input konfirmasi
     confirmingUserDeletion.value = true;
-    console.log('Buka modal hapus untuk user:', user.name);
+    // console.log('Buka modal hapus untuk user:', user.name);
 };
 
 const closeDeleteModal = () => {
@@ -171,7 +172,7 @@ const confirmAndDeleteUser = () => {
                 closeDeleteModal();
                 // Pesan flash akan ditangani oleh AdminLayout
                 // Daftar akan otomatis refresh karena redirect dari backend
-                console.log(`User ${deletedUserName} proses hapus/nonaktif dikirim.`);
+                // console.log(`User ${deletedUserName} proses hapus/nonaktif dikirim.`);
             },
             onError: (errors) => {
                 console.error('Gagal menghapus pengguna:', errors);
@@ -193,8 +194,8 @@ const confirmAndDeleteUser = () => {
     }
 };
 
-// const openEditUserModal = (user) => { console.log('TODO: Edit user:', user.name); };
-// const openDeleteUserModal = (user) => { console.log('TODO: Hapus user:', user.name); };
+// const openEditUserModal = (user) => { // console.log('TODO: Edit user:', user.name); };
+// const openDeleteUserModal = (user) => { // console.log('TODO: Hapus user:', user.name); };
 
 </script>
 

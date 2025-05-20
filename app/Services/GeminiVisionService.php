@@ -30,7 +30,7 @@ class GeminiVisionService
 
     public function __construct()
     {
-        info('GeminiVisionService: __construct called.');
+        Log::info('GeminiVisionService: __construct called.');
         $this->apiKey = config('services.google.api_key');
         // $this->apiEndpointFlash = config('services.google.api_endpoint_flash');
         // $this->apiEndpointFlash = config('services.google.api_endpoint_pro');
@@ -51,7 +51,7 @@ class GeminiVisionService
      */
     public function analyzeImageUsingActivePrompt(UploadedFile $imageFile): array
     {
-        info('GeminiVisionService: analyzeImageUsingActivePrompt called.');
+        Log::info('GeminiVisionService: analyzeImageUsingActivePrompt called.');
         $activeConfiguredPrompt = $this->getActiveConfiguredPrompt();
 
         if (!$activeConfiguredPrompt) {
@@ -62,7 +62,7 @@ class GeminiVisionService
         $fullPrompt = $activeConfiguredPrompt->full_prompt_text_generated;
         $generationConfig = $activeConfiguredPrompt->generation_config_final; // Ini sudah array dari cast model
 
-        info('GeminiService: Using active configured prompt for RVM.', [
+        Log::info('GeminiService: Using active configured prompt for RVM.', [
             'prompt_name' => $activeConfiguredPrompt->configured_prompt_name,
             'prompt_length' => strlen($fullPrompt)
         ]);
@@ -86,7 +86,7 @@ class GeminiVisionService
      */
     public function analyzeWithCustomPromptAndConfig(UploadedFile $imageFile, string $customPrompt, ?array $generationConfig = null): array
     {
-        info('GeminiService: analyzeWithCustomPromptAndConfig called (Test Prompt).');
+        Log::info('GeminiService: analyzeWithCustomPromptAndConfig called (Test Prompt).');
         list($imageBase64, $imageMimeType) = $this->processAndEncodeImage($imageFile);
         return $this->executeGeminiVisionRequest($imageBase64, $imageMimeType, $customPrompt, $generationConfig, $this->apiEndpointFlash);
     }
@@ -96,7 +96,7 @@ class GeminiVisionService
      */
     protected function executeGeminiVisionRequest(string $imageBase64, string $imageMimeType, string $prompt, ?array $generationConfig, string $endpoint): array
     {
-        info('GeminiVisionService: executeGeminiVisionRequest called.');
+        Log::info('GeminiVisionService: executeGeminiVisionRequest called.');
         $payload = [
             'contents' => [[
                 'parts' => [
@@ -107,7 +107,7 @@ class GeminiVisionService
         ];
         if ($generationConfig) { $payload['generationConfig'] = $generationConfig; }
         $fullApiUrl = $endpoint . '?key=' . $this->apiKey;
-        info('GeminiService: Preparing cURL request.', ['url' => $fullApiUrl, 'prompt_length' => strlen($prompt), 'has_gen_config' => !is_null($generationConfig)]);
+        Log::info('GeminiService: Preparing cURL request.', ['url' => $fullApiUrl, 'prompt_length' => strlen($prompt), 'has_gen_config' => !is_null($generationConfig)]);
         // Log::debug('GeminiService: Payload to be sent:', $payload); // Bisa sangat besar karena imageBase64
 
         $startTime = microtime(true);

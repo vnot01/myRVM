@@ -8,6 +8,7 @@ use Illuminate\Support\Str; // Untuk Str::random()
 use Illuminate\Validation\Rule; // Untuk Rule::in()
 use App\Models\ReverseVendingMachine; // Pastikan model diimpor
 use Inertia\Inertia; // Import Inertia
+use Illuminate\Support\Facades\Log;
 
 
 class RvmManagementController extends Controller
@@ -37,7 +38,7 @@ class RvmManagementController extends Controller
                         'created_at_formatted' => $rvm->created_at->translatedFormat('d M Y, H:i'),
                     ])
                     ->withQueryString(); // Penting agar parameter search tetap ada di link paginasi
-        info('RVMs: Index Opened!');
+        Log::info('RVMs: Index Opened!');
         return Inertia::render('Admin/RVMs/Index', [
             'rvms' => $rvms,
             'filters' => $request->only(['search']), // Kirim filter kembali ke view
@@ -75,7 +76,7 @@ class RvmManagementController extends Controller
      */
     public function create()
     {
-        info('RVMs: Created!');
+        Log::info('RVMs: Created!');
         //
         // Metode create, store, edit, update, destroy akan ditambahkan nanti
         return Inertia::render('Admin/RVMs/Create', [
@@ -90,7 +91,7 @@ class RvmManagementController extends Controller
      */
     public function store(Request $request)
     {
-        info('RVMs: Stored!');
+        Log::info('RVMs: Stored!');
         $validatedData = $request->validate([
             'name' => 'required|string|max:255|unique:reverse_vending_machines,name',
             'location_description' => 'nullable|string|max:1000',
@@ -112,7 +113,7 @@ class RvmManagementController extends Controller
             // 'longitude' => $request->input('longitude'), // Jika ada field ini
         ]);
 
-        // info('RVMs Stored data: Stored!: '.$rvm);
+        // Log::info('RVMs Stored data: Stored!: '.$rvm);
         return redirect()->route('admin.rvms.index')->with('success', 'Mesin '.$rvm->name. ' ditambahkan. Status: ' . $rvm->status);
     }
 
@@ -129,7 +130,7 @@ class RvmManagementController extends Controller
      */
     public function edit(ReverseVendingMachine $rvm) // Route Model Binding
     {
-        info('RVMs: Editing RVM ID: ' . $rvm->id);
+        Log::info('RVMs: Editing RVM ID: ' . $rvm->id);
         return Inertia::render('Admin/RVMs/Edit', [
             'rvm' => [ // Kirim hanya data yang diperlukan dan aman
                 'id' => $rvm->id,
@@ -147,7 +148,7 @@ class RvmManagementController extends Controller
      */
     public function update(Request $request, ReverseVendingMachine $rvm) // Route Model Binding
     {
-        info('RVMs: Updating RVM ID: ' . $rvm->id);
+        Log::info('RVMs: Updating RVM ID: ' . $rvm->id);
         $validatedData = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('reverse_vending_machines')->ignore($rvm->id)],
             'location_description' => 'nullable|string|max:1000',
@@ -164,7 +165,7 @@ class RvmManagementController extends Controller
      */
     public function destroy(ReverseVendingMachine $rvm) // Route Model Binding
     {
-        info('RVMs: Deleting RVM ID: ' . $rvm->id . ' Name: ' . $rvm->name);
+        Log::info('RVMs: Deleting RVM ID: ' . $rvm->id . ' Name: ' . $rvm->name);
         try {
             $rvmName = $rvm->name; // Simpan nama sebelum dihapus untuk pesan flash
             $rvm->delete();

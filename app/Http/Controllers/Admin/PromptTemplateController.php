@@ -95,7 +95,7 @@ class PromptTemplateController extends Controller
     public function edit(PromptTemplate $promptTemplate)
     {
         // Otorisasi sudah ditangani oleh middleware rute
-        info('Editing PromptTemplate ID:', ['id' => $promptTemplate->id, 'name' => $promptTemplate->template_name]); // Log data dasar
+        Log::info('Editing PromptTemplate ID:', ['id' => $promptTemplate->id, 'name' => $promptTemplate->template_name]); // Log data dasar
 
         $dataForVue = [
             'id' => $promptTemplate->id,
@@ -117,7 +117,7 @@ class PromptTemplateController extends Controller
     // public function edit(Request $request, $promptTemplateId)
     // {
     //     // Log parameter mentah dari URL
-    //     info('Edit method called with raw parameter:', ['id_from_url' => $promptTemplateId]);
+    //     Log::info('Edit method called with raw parameter:', ['id_from_url' => $promptTemplateId]);
 
     //     $promptTemplate = PromptTemplate::find($promptTemplateId); // Cari manual
 
@@ -128,7 +128,7 @@ class PromptTemplateController extends Controller
 
     //     // dd($promptTemplate); // Sekarang dd() di sini untuk melihat hasil find()
 
-    //     info('Editing PromptTemplate ID (manual find):', ['id' => $promptTemplate->id, 'name' => $promptTemplate->template_name]);
+    //     Log::info('Editing PromptTemplate ID (manual find):', ['id' => $promptTemplate->id, 'name' => $promptTemplate->template_name]);
 
     //     $dataForVue = [
     //         'id' => $promptTemplate->id,

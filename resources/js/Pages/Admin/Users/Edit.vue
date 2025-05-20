@@ -16,20 +16,20 @@ const props = defineProps({
 });
 
 // // Log awal untuk melihat apa yang sebenarnya diterima props
-// console.log('[Edit.vue SETUP] props.user (raw):', props.user);
-// console.log('[Edit.vue SETUP] props.availableRoles (raw):', props.availableRoles);
+// // console.log('[Edit.vue SETUP] props.user (raw):', props.user);
+// // console.log('[Edit.vue SETUP] props.availableRoles (raw):', props.availableRoles);
 // // Log yang lebih aman
 // // Log dengan JSON.stringify hanya jika prop ada
 // if (props.user) {
-//     console.log('[Edit.vue SETUP] User to edit (stringified):', JSON.parse(JSON.stringify(props.user)));
+//     // console.log('[Edit.vue SETUP] User to edit (stringified):', JSON.parse(JSON.stringify(props.user)));
 // } else {
-//     console.warn('[Edit.vue SETUP] props.user is undefined or null AT SETUP');
+//     // console.warn('[Edit.vue SETUP] props.user is undefined or null AT SETUP');
 // }
 
 // if (props.availableRoles) {
-//     console.log('[Edit.vue SETUP] Available roles (stringified):', JSON.parse(JSON.stringify(props.availableRoles)));
+//     // console.log('[Edit.vue SETUP] Available roles (stringified):', JSON.parse(JSON.stringify(props.availableRoles)));
 // } else {
-//     console.warn('[Edit.vue SETUP] props.availableRoles is undefined or null AT SETUP');
+//     // console.warn('[Edit.vue SETUP] props.availableRoles is undefined or null AT SETUP');
 // }
 
 // Inisialisasi form dengan data dari props.user
@@ -65,10 +65,10 @@ function handleAvatarChange(event) {
     const file = event.target.files[0];
     if (file) {
         form.avatar = file; // Simpan objek File ke form
-        // console.log('[Edit.vue] Avatar file selected:', form.avatar); // <-- DEBUG FILE
-        // console.log('[Edit.vue] Avatar file name:', form.avatar.name);
-        // console.log('[Edit.vue] Avatar file size:', form.avatar.size);
-        // console.log('[Edit.vue] Avatar file type:', form.avatar.type);
+        // // console.log('[Edit.vue] Avatar file selected:', form.avatar); // <-- DEBUG FILE
+        // // console.log('[Edit.vue] Avatar file name:', form.avatar.name);
+        // // console.log('[Edit.vue] Avatar file size:', form.avatar.size);
+        // // console.log('[Edit.vue] Avatar file type:', form.avatar.type);
 
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -130,8 +130,8 @@ const handleIdentityNumberInput = (event) => {
 const submitUpdate = () => {
     // Karena avatar adalah file, kita perlu mengirim sebagai FormData (POST request)
     // Inertia secara otomatis akan melakukan ini jika ada objek File di data form.
-    console.log('[Edit.vue] Submitting form data:', form); // <-- DEBUG FORM DATA
-    console.log('[Edit.vue] form.avatar before POST:', form.avatar);
+    // console.log('[Edit.vue] Submitting form data:', form); // <-- DEBUG FORM DATA
+    // console.log('[Edit.vue] form.avatar before POST:', form.avatar);
     form.post(route('admin.users.update', props.user.id), { // form.post akan otomatis handle _method: 'PUT'
         preserveScroll: true,
         onError: (errors) => {

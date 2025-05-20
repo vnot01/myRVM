@@ -107,9 +107,9 @@ class PromptComponentController extends Controller
 
     public function edit(PromptComponent $promptComponent) // Route model binding
     {
-        info('Editing PromptComponent:', $promptComponent->toArray()); // Alternatif untuk dd
-        // info(message: 'Editing PromptComponent:', ['id' => $promptComponent->id, 'name' => $promptComponent->component_name]); // Log data dasar
-        // info('Editing PromptComponent:', ['id' => $promptComponent->id, 'name' => $promptComponent->component_name]); // Log data dasar
+        Log::info('Editing PromptComponent:', $promptComponent->toArray()); // Alternatif untuk dd
+        // Log::info(message: 'Editing PromptComponent:', ['id' => $promptComponent->id, 'name' => $promptComponent->component_name]); // Log data dasar
+        // Log::info('Editing PromptComponent:', ['id' => $promptComponent->id, 'name' => $promptComponent->component_name]); // Log data dasar
         // $dataForVue = [
         //     'id' => $promptComponent->id,
         //     'component_name' => $promptComponent->component_name,

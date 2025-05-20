@@ -159,8 +159,12 @@ const confirmAndDeleteTemplate = () => {
     const deletedTemplateName = templateToDelete.value.component_name;
     deleteTemplateForm.delete(route('admin.prompt-components.destroy', templateToDelete.value.id), {
         preserveScroll: true,
-        onSuccess: () => { closeDeleteTemplateModal(); console.log(`Template "${deletedTemplateName}" dihapus.`); },
-        onError: (errors) => { console.error('Gagal hapus:', errors); }
+        onSuccess: () => { closeDeleteTemplateModal();
+            //  console.log(`Template "${deletedTemplateName}" dihapus.`); 
+            },
+        onError: (errors) => { 
+            // console.error('Gagal hapus:', errors); 
+        }
     });
 };
 // --- AKHIR FUNGSI MODAL HAPUS ---

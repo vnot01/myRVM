@@ -15,11 +15,11 @@ const props = defineProps({
     availableStatuses: Array,
     availableRoles:Array,
 });
-console.log('[Index.vue SETUP] Initial props.users:', JSON.parse(JSON.stringify(props.users)));
-console.log('[Index.vue SETUP] Initial props.filters:', JSON.parse(JSON.stringify(props.filters)));
-console.log('[Index.vue SETUP] Initial props.availableRoles:', JSON.parse(JSON.stringify(props.availableRoles)));
-console.log('[Index.vue SETUP] Initial props.availableStatuses:', JSON.parse(JSON.stringify(props.availableStatuses)));
-console.log('[Index.vue SETUP] Initial props.availableRolesProp:', JSON.parse(JSON.stringify(props.availableRolesProp)));
+// console.log('[Index.vue SETUP] Initial props.users:', JSON.parse(JSON.stringify(props.users)));
+// console.log('[Index.vue SETUP] Initial props.filters:', JSON.parse(JSON.stringify(props.filters)));
+// console.log('[Index.vue SETUP] Initial props.availableRoles:', JSON.parse(JSON.stringify(props.availableRoles)));
+// console.log('[Index.vue SETUP] Initial props.availableStatuses:', JSON.parse(JSON.stringify(props.availableStatuses)));
+// console.log('[Index.vue SETUP] Initial props.availableRolesProp:', JSON.parse(JSON.stringify(props.availableRolesProp)));
 
 // ... (state refs: allUsers, currentPage, lastPage, isLoadingMore, initialLoadComplete) ...
 const allUsers = ref([]); // Default
@@ -30,32 +30,32 @@ const initialLoadComplete = ref(false); // PENTING: Awalnya false
 const searchTerm = ref(props.filters.search || '');
 
 const updateLocalUserState = (paginator) => {
-    console.log('[updateLocalUserState] Received paginator:', JSON.parse(JSON.stringify(paginator)));
+    // console.log('[updateLocalUserState] Received paginator:', JSON.parse(JSON.stringify(paginator)));
     // Akses langsung properti paginasi dari level atas objek paginator
     if (paginator && paginator.data && typeof paginator.current_page !== 'undefined' && typeof paginator.last_page !== 'undefined') {
         if (paginator.current_page === 1) {
             allUsers.value = paginator.data ? [...paginator.data] : [];
-            console.log('[updateLocalUserState] RESET allUsers (page 1):', allUsers.value.length, 'items');
+            // console.log('[updateLocalUserState] RESET allUsers (page 1):', allUsers.value.length, 'items');
         } else {
             const existingIds = new Set(allUsers.value.map(u => u.id));
             const newUniqueUsers = (paginator.data || []).filter(u => !existingIds.has(u.id));
             allUsers.value.push(...newUniqueUsers);
-            console.log('[updateLocalUserState] ADDED to allUsers:', newUniqueUsers.length, 'new items. Total:', allUsers.value.length);
+            // console.log('[updateLocalUserState] ADDED to allUsers:', newUniqueUsers.length, 'new items. Total:', allUsers.value.length);
         }
         currentPage.value = paginator.current_page;
         lastPage.value = paginator.last_page;
     } else {
-        console.warn('[updateLocalUserState] Invalid paginator structure. Resetting allUsers.');
+        // console.warn('[updateLocalUserState] Invalid paginator structure. Resetting allUsers.');
         allUsers.value = [];
         currentPage.value = 1;
         lastPage.value = 1;
     }
     initialLoadComplete.value = true;
-    console.log('[updateLocalUserState] States updated. initialLoadComplete:', initialLoadComplete.value, 'allUsers.length:', allUsers.value.length, 'currentPage:', currentPage.value, 'lastPage:', lastPage.value);
+    // console.log('[updateLocalUserState] States updated. initialLoadComplete:', initialLoadComplete.value, 'allUsers.length:', allUsers.value.length, 'currentPage:', currentPage.value, 'lastPage:', lastPage.value);
 };
 
 onMounted(() => {
-    console.log('[onMounted] Initial props.users:', JSON.parse(JSON.stringify(props.users)));
+    // console.log('[onMounted] Initial props.users:', JSON.parse(JSON.stringify(props.users)));
     updateLocalUserState(props.users);
     window.addEventListener('scroll', handleScroll);
 });
@@ -65,7 +65,7 @@ onUnmounted(() => {
 });
 
 watch(searchTerm, debounce((newValue) => {
-    console.log('[watch searchTerm] New search term:', newValue);
+    // console.log('[watch searchTerm] New search term:', newValue);
     isLoadingMore.value = false;
     router.get(route('admin.users.index'), {
         search: newValue,
@@ -81,18 +81,18 @@ watch(searchTerm, debounce((newValue) => {
 }, 300));
 
 watch(() => props.users, (newPaginator) => {
-    console.log('[watch props.users] props.users changed. New current_page:', newPaginator?.current_page);
+    // console.log('[watch props.users] props.users changed. New current_page:', newPaginator?.current_page);
     updateLocalUserState(newPaginator); // Panggil update setiap kali props.users berubah
 }, { deep: true });
 
 
 const loadMoreUsers = () => {
-    console.log('[loadMoreUsers] Attempting. isLoadingMore:', isLoadingMore.value, 'currentPage:', currentPage.value, 'lastPage:', lastPage.value);
+    // console.log('[loadMoreUsers] Attempting. isLoadingMore:', isLoadingMore.value, 'currentPage:', currentPage.value, 'lastPage:', lastPage.value);
     if (isLoadingMore.value || !initialLoadComplete.value || currentPage.value >= lastPage.value) {
         return;
     }
     isLoadingMore.value = true;
-    console.log(`[loadMoreUsers] Loading page ${currentPage.value + 1}...`);
+    // console.log(`[loadMoreUsers] Loading page ${currentPage.value + 1}...`);
 
     router.get(route('admin.users.index'), {
         search: searchTerm.value,
@@ -100,12 +100,12 @@ const loadMoreUsers = () => {
     }, {
         preserveState: true, preserveScroll: true, replace: true,
         onSuccess: (page) => {
-            console.log('[loadMoreUsers onSuccess] More users loaded. Page props:', JSON.parse(JSON.stringify(page.props.users)));
+            // console.log('[loadMoreUsers onSuccess] More users loaded. Page props:', JSON.parse(JSON.stringify(page.props.users)));
             if (page.props.users && page.props.users.data) {
                 const existingIds = new Set(allUsers.value.map(u => u.id));
                 const newUniqueUsers = page.props.users.data.filter(u => !existingIds.has(u.id));
                 allUsers.value.push(...newUniqueUsers);
-                console.log('[loadMoreUsers onSuccess] Added to allUsers:', newUniqueUsers.length, 'new items. Total:', allUsers.value.length);
+                // console.log('[loadMoreUsers onSuccess] Added to allUsers:', newUniqueUsers.length, 'new items. Total:', allUsers.value.length);
             }
             // Update currentPage dan lastPage dari respons baru
             if (page.props.users && typeof page.props.users.current_page !== 'undefined' && typeof page.props.users.last_page !== 'undefined') {
@@ -133,8 +133,13 @@ const formatDate = (dateString) => { /* ... (fungsi Anda) ... */
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
     return new Date(dateString).toLocaleDateString('id-ID', options);
 };
-const openEditUserModal = (user) => { console.log('TODO: Edit user:', user.name); router.get(route('admin.users.edit', user.id)); };
-const openDeleteUserModal = (user) => { console.log('TODO: Hapus user:', user.name); };
+const openEditUserModal = (user) => {  
+    // console.log('TODO: Edit user:', user.name); 
+    router.get(route('admin.users.edit', user.id)); 
+};
+const openDeleteUserModal = (user) => {  
+    // console.log('TODO: Hapus user:', user.name);
+};
 
 // Hapus fungsi submit dan testClickAndNavigate jika tidak digunakan di sini
 // const submit = () => { ... };

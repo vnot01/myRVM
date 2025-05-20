@@ -1,5 +1,6 @@
 <script setup>
 import { Line } from 'vue-chartjs';
+import zoomPlugin from 'chartjs-plugin-zoom';
 import {
   Chart as ChartJS,
   Title,
@@ -22,7 +23,8 @@ ChartJS.register(
   CategoryScale,
   LinearScale,
   PointElement,
-  Filler
+  Filler,
+  zoomPlugin
 );
 
 const props = defineProps({
