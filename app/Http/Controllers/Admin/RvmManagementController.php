@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 
 
 class RvmManagementController extends Controller
-{
+{  
     // app/Http/Controllers/Admin/RvmManagementController.php
     public function index(Request $request) // Tambahkan Request $request
     {
